@@ -5,13 +5,16 @@
 import { useState, useEffect } from "react";
 
 export default function Page() {
+const SITE_PASSWORD = "optics2026";
 
+const [authorized, setAuthorized] = useState(false);
+const [password, setPassword] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [quantities, setQuantities] = useState<any>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string>("Все");
-
+const [search, setSearch] = useState("");
   // 🔥 ЗАГРУЗКА ИЗ GOOGLE SHEETS
   useEffect(() => {
     fetch("https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1")
@@ -81,7 +84,40 @@ export default function Page() {
     (sum, p) => sum + p.price * (p.quantity || 1),
     0
   );
+if (!authorized) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-80">
+        
+        <h1 className="text-2xl font-bold mb-4 text-center">
+          Вход
+        </h1>
 
+        <input
+          type="password"
+          placeholder="Введите пароль"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border w-full p-3 rounded-xl mb-4 text-black"
+        />
+
+        <button
+          onClick={() => {
+            if (password === SITE_PASSWORD) {
+              setAuthorized(true);
+            } else {
+              alert("Неверный пароль");
+            }
+          }}
+          className="w-full bg-blue-600 text-white py-3 rounded-xl"
+        >
+          Войти
+        </button>
+
+      </div>
+    </div>
+  );
+}
   return (
     <div className="p-6">
 
@@ -101,8 +137,28 @@ export default function Page() {
       <div className="grid grid-cols-4 gap-6">
 
         {/* ТОВАРЫ */}
+        <div className="mt-4 mb-4">
+  <input
+    type="text"
+    placeholder="Поиск товара..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className="border border-gray-300 bg-white text-black p-2 rounded-lg shadow-sm w-full"
+  />
+</div>
         <div className="col-span-3 grid grid-cols-3 gap-4">
           {products
+            .filter((p) => {
+    const matchesBrand =
+      selectedBrand === "Все" || p.brand === selectedBrand;
+
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.brand.toLowerCase().includes(search.toLowerCase()) ||
+      p.description.toLowerCase().includes(search.toLowerCase());
+
+    return matchesBrand && matchesSearch;
+  })
             .filter((p) => selectedBrand === "Все" || p.brand === selectedBrand)
             .map((p) => (
               <div key={p.id} className="border rounded-2xl p-4 shadow relative">
