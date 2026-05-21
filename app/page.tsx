@@ -118,6 +118,7 @@ export default function Page() {
                 <div className="h-[180px] flex items-center justify-center bg-gray-100 rounded">
                   <img
                     src={p.image}
+                    alt={p.name}
                     onClick={() => setSelectedImage(p.image)}
                     className="max-h-full max-w-full object-contain cursor-pointer"
                   />
@@ -207,6 +208,7 @@ export default function Page() {
         >
           <img
             src={selectedImage}
+            alt="preview"
             className="max-w-[90%] max-h-[90%] object-contain"
           />
         </div>
