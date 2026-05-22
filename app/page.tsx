@@ -28,6 +28,12 @@ export default function Page() {
 
   const [selectedBrand, setSelectedBrand] = useState("INVU");
   const [search, setSearch] = useState("");
+  const [clientName, setClientName] = useState("");
+const [clientPhone, setClientPhone] = useState("");
+const [clientCity, setClientCity] = useState("");
+const [clientAddress, setClientAddress] = useState("");
+const [clientStore, setClientStore] = useState("");
+const [manager, setManager] = useState("");
 
   useEffect(() => {
 
@@ -490,9 +496,89 @@ export default function Page() {
 
           </div>
 
-          <button className="mt-4 w-full bg-green-600 text-white py-3 rounded-xl">
-            Оформити замовлення
-          </button>
+          <div className="mt-4 space-y-3">
+
+  <input
+    type="text"
+    placeholder="ПІБ / ФОП"
+    value={clientName}
+    onChange={(e) => setClientName(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Телефон"
+    value={clientPhone}
+    onChange={(e) => setClientPhone(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Місто"
+    value={clientCity}
+    onChange={(e) => setClientCity(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Адреса доставки"
+    value={clientAddress}
+    onChange={(e) => setClientAddress(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Назва магазину"
+    value={clientStore}
+    onChange={(e) => setClientStore(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Менеджер"
+    value={manager}
+    onChange={(e) => setManager(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <button
+    onClick={() => {
+
+      const orderText = `
+Замовлення:
+
+Клієнт: ${clientName}
+Телефон: ${clientPhone}
+Місто: ${clientCity}
+Адреса: ${clientAddress}
+Магазин: ${clientStore}
+Менеджер: ${manager}
+
+Товари:
+
+${cart.map((p) =>
+  `${p.name} x${p.quantity}`
+).join("\n")}
+
+Сума: ${totalPrice.toFixed(2)} грн
+`;
+
+      navigator.clipboard.writeText(orderText);
+
+      alert("Замовлення скопійовано");
+
+    }}
+    className="w-full bg-green-600 text-white py-3 rounded-xl"
+  >
+    Оформити замовлення
+  </button>
+
+</div>
 
         </div>
 
