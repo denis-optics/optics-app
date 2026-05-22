@@ -29,19 +29,14 @@ export default function Page() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const [selectedBrand, setSelectedBrand] = useState("INVU");
-  const [clientName, setClientName] = useState("");
-const [clientPhone, setClientPhone] = useState("");
-const [clientCity, setClientCity] = useState("");
-const [clientAddress, setClientAddress] = useState("");
-const [clientShop, setClientShop] = useState("");
-const [clientManager, setClientManager] = useState("");
   const [search, setSearch] = useState("");
+
   const [clientName, setClientName] = useState("");
-const [clientPhone, setClientPhone] = useState("");
-const [clientCity, setClientCity] = useState("");
-const [clientAddress, setClientAddress] = useState("");
-const [clientStore, setClientStore] = useState("");
-const [manager, setManager] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientCity, setClientCity] = useState("");
+  const [clientAddress, setClientAddress] = useState("");
+  const [clientShop, setClientShop] = useState("");
+  const [clientManager, setClientManager] = useState("");
 
   useEffect(() => {
 
@@ -109,6 +104,7 @@ const [manager, setManager] = useState("");
       };
 
     });
+
   };
 
   const decreaseQty = (id: number) => {
@@ -163,122 +159,81 @@ const [manager, setManager] = useState("");
       ),
     0
   );
-const exportToExcel = () => {
 
-  const data = cart.map((p) => ({
+  const exportToExcel = () => {
 
-    Фото: p.image,
+    const data = cart.map((p) => ({
 
-    Артикул: p.name,
+      Фото: p.image,
 
-    Бренд: p.brand,
+      Артикул: p.name,
 
-    Розміри: p.sizes,
+      Бренд: p.brand,
 
-    Кількість: p.quantity,
+      Розміри: p.sizes,
 
-    Ціна: (
-      p.price *
-      44.2 *
-      1.02
-    ).toFixed(2),
+      Кількість: p.quantity,
 
-    Сума: (
-      p.price *
-      44.2 *
-      1.02 *
-      p.quantity
-    ).toFixed(2),
+      Ціна: (
+        p.price *
+        44.2 *
+        1.02
+      ).toFixed(2),
 
-    Клієнт: clientName,
+      Сума: (
+        p.price *
+        44.2 *
+        1.02 *
+        p.quantity
+      ).toFixed(2),
 
-    Телефон: clientPhone,
+      Клієнт: clientName,
 
-    Місто: clientCity,
+      Телефон: clientPhone,
 
-    Адреса: clientAddress,
+      Місто: clientCity,
 
-    Магазин: clientShop,
+      Адреса: clientAddress,
 
-    Менеджер: clientManager
+      Магазин: clientShop,
 
-  }));
+      Менеджер: clientManager
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
+    }));
 
-  const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(data);
 
-  XLSX.utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "Замовлення"
-  );
+    const workbook = XLSX.utils.book_new();
 
-  const excelBuffer = XLSX.write(
-    workbook,
-    {
-      bookType: "xlsx",
-      type: "array"
-    }
-  );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Замовлення"
+    );
 
-  const fileData = new Blob(
-    [excelBuffer],
-    {
-      type:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    }
-  );
+    const excelBuffer = XLSX.write(
+      workbook,
+      {
+        bookType: "xlsx",
+        type: "array"
+      }
+    );
 
-  saveAs(
-    fileData,
-    `zamovlennya_${clientName || "client"}.xlsx`
-  );
+    const fileData = new Blob(
+      [excelBuffer],
+      {
+        type:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      }
+    );
 
-};
+    saveAs(
+      fileData,
+      `zamovlennya_${clientName || "client"}.xlsx`
+    );
 
-  const data = cart.map((p) => ({
-    Артикул: p.name,
-    Бренд: p.brand,
-    Кількість: p.quantity,
-    Ціна: (p.price * 44.2 * 1.02).toFixed(2),
-    Сума: (
-      p.price *
-      44.2 *
-      1.02 *
-      p.quantity
-    ).toFixed(2)
-  }));
+  };
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-
-  const workbook = XLSX.utils.book_new();
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "Замовлення"
-  );
-
-  const excelBuffer = XLSX.write(
-    workbook,
-    {
-      bookType: "xlsx",
-      type: "array"
-    }
-  );
-
-  const fileData = new Blob(
-    [excelBuffer],
-    {
-      type:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    }
-  );
-
-  saveAs(fileData, "zamovlennya.xlsx");
-
-};
   if (!authorized) {
 
     return (
@@ -465,15 +420,11 @@ const exportToExcel = () => {
 
                   {p.price} $
 
-                  {" "}
-
-                  <span className="text-green-700">
-
+                  <span className="text-green-700 ml-2">
                     (
                     {(p.price * 44.2 * 1.02).toFixed(2)}
                     {" "}грн
                     )
-
                   </span>
 
                 </p>
@@ -500,9 +451,7 @@ const exportToExcel = () => {
                   </button>
 
                   <span className="w-6 text-center font-semibold">
-
                     {quantities[p.id] || 1}
-
                   </span>
 
                   <button
@@ -539,156 +488,160 @@ const exportToExcel = () => {
           <h2 className="text-xl font-bold mb-4">
             Замовлення
           </h2>
+
           <div className="space-y-2 mb-4">
 
-  <input
-    type="text"
-    placeholder="ПІБ / ФОП"
-    value={clientName}
-    onChange={(e) => setClientName(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
+            <input
+              type="text"
+              placeholder="ПІБ / ФОП"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              className="w-full border p-2 rounded-lg"
+            />
 
-  <input
-    type="text"
-    placeholder="Телефон"
-    value={clientPhone}
-    onChange={(e) => setClientPhone(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
+            <input
+              type="text"
+              placeholder="Телефон"
+              value={clientPhone}
+              onChange={(e) => setClientPhone(e.target.value)}
+              className="w-full border p-2 rounded-lg"
+            />
 
-  <input
-    type="text"
-    placeholder="Місто"
-    value={clientCity}
-    onChange={(e) => setClientCity(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
+            <input
+              type="text"
+              placeholder="Місто"
+              value={clientCity}
+              onChange={(e) => setClientCity(e.target.value)}
+              className="w-full border p-2 rounded-lg"
+            />
 
-  <input
-    type="text"
-    placeholder="Адреса доставки"
-    value={clientAddress}
-    onChange={(e) => setClientAddress(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
+            <input
+              type="text"
+              placeholder="Адреса доставки"
+              value={clientAddress}
+              onChange={(e) => setClientAddress(e.target.value)}
+              className="w-full border p-2 rounded-lg"
+            />
 
-  <input
-    type="text"
-    placeholder="Назва магазину"
-    value={clientShop}
-    onChange={(e) => setClientShop(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
+            <input
+              type="text"
+              placeholder="Назва магазину"
+              value={clientShop}
+              onChange={(e) => setClientShop(e.target.value)}
+              className="w-full border p-2 rounded-lg"
+            />
 
-  <input
-    type="text"
-    placeholder="Менеджер"
-    value={clientManager}
-    onChange={(e) => setClientManager(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
+            <input
+              type="text"
+              placeholder="Менеджер"
+              value={clientManager}
+              onChange={(e) => setClientManager(e.target.value)}
+              className="w-full border p-2 rounded-lg"
+            />
 
-</div>
-<div className="max-h-[45vh] overflow-y-auto pr-2">
-          {cart.map((p) => (
+          </div>
 
-            <div
-              key={p.id}
-              className="flex items-center justify-between mb-2 text-sm gap-2 border-b pb-2"
-            >
+          <div className="max-h-[45vh] overflow-y-auto pr-2">
 
-              <div className="flex items-center gap-2">
+            {cart.map((p) => (
 
-                <img
-                  src={p.image}
-                  alt={p.name}
-                  className="w-10 h-10 object-contain border rounded"
-                />
+              <div
+                key={p.id}
+                className="flex items-center justify-between mb-2 text-sm gap-2 border-b pb-2"
+              >
 
-                <div>
+                <div className="flex items-center gap-2">
 
-                  <div className="truncate w-28">
-                    {p.name}
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    className="w-10 h-10 object-contain border rounded"
+                  />
+
+                  <div>
+
+                    <div className="truncate w-28">
+                      {p.name}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1">
+
+                      <button
+                        onClick={() => {
+
+                          setCart(cart.map((item) =>
+                            item.id === p.id
+                              ? {
+                                  ...item,
+                                  quantity: Math.max(item.quantity - 1, 1)
+                                }
+                              : item
+                          ));
+
+                        }}
+                        className="w-6 h-6 bg-gray-300 rounded text-black"
+                      >
+                        −
+                      </button>
+
+                      <span className="text-xs font-semibold">
+                        {p.quantity}
+                      </span>
+
+                      <button
+                        onClick={() => {
+
+                          if (p.quantity >= p.stock) return;
+
+                          setCart(cart.map((item) =>
+                            item.id === p.id
+                              ? {
+                                  ...item,
+                                  quantity: item.quantity + 1
+                                }
+                              : item
+                          ));
+
+                        }}
+                        className="w-6 h-6 bg-gray-300 rounded text-black"
+                      >
+                        +
+                      </button>
+
+                    </div>
+
                   </div>
-
-                  <div className="flex items-center gap-2 mt-1">
-
-  <button
-    onClick={() => {
-
-      setCart(cart.map((item) =>
-        item.id === p.id
-          ? {
-              ...item,
-              quantity: Math.max(item.quantity - 1, 1)
-            }
-          : item
-      ));
-
-    }}
-    className="w-6 h-6 bg-gray-300 rounded text-black"
-  >
-    −
-  </button>
-
-  <span className="text-xs font-semibold">
-    {p.quantity}
-  </span>
-
-  <button
-    onClick={() => {
-
-      if (p.quantity >= p.stock) return;
-
-      setCart(cart.map((item) =>
-        item.id === p.id
-          ? {
-              ...item,
-              quantity: item.quantity + 1
-            }
-          : item
-      ));
-
-    }}
-    className="w-6 h-6 bg-gray-300 rounded text-black"
-  >
-    +
-  </button>
-
-</div>
 
                 </div>
 
+                <div className="text-xs">
+
+                  {(
+                    p.price *
+                    44.2 *
+                    1.02 *
+                    (p.quantity || 1)
+                  ).toFixed(2)}
+
+                  {" "}грн
+
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCart(
+                      cart.filter((item) => item.id !== p.id)
+                    )
+                  }
+                  className="text-red-500 text-xs"
+                >
+                  ✕
+                </button>
+
               </div>
 
-              <div className="text-xs">
+            ))}
 
-                {(
-                  p.price *
-                  44.2 *
-                  1.02 *
-                  (p.quantity || 1)
-                ).toFixed(2)}
-
-                {" "}грн
-
-              </div>
-
-              <button
-                onClick={() =>
-                  setCart(
-                    cart.filter((item) => item.id !== p.id)
-                  )
-                }
-                className="text-red-500 text-xs"
-              >
-                ✕
-              </button>
-
-            </div>
-
-          ))}
           </div>
 
           <div className="mt-4 border-t pt-4 text-sm">
@@ -715,66 +668,18 @@ const exportToExcel = () => {
 
           <div className="mt-4 space-y-3">
 
-  <input
-    type="text"
-    placeholder="ПІБ / ФОП"
-    value={clientName}
-    onChange={(e) => setClientName(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
+            <button
+              onClick={() => {
 
-  <input
-    type="text"
-    placeholder="Телефон"
-    value={clientPhone}
-    onChange={(e) => setClientPhone(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
-
-  <input
-    type="text"
-    placeholder="Місто"
-    value={clientCity}
-    onChange={(e) => setClientCity(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
-
-  <input
-    type="text"
-    placeholder="Адреса доставки"
-    value={clientAddress}
-    onChange={(e) => setClientAddress(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
-
-  <input
-    type="text"
-    placeholder="Назва магазину"
-    value={clientStore}
-    onChange={(e) => setClientStore(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
-
-  <input
-    type="text"
-    placeholder="Менеджер"
-    value={manager}
-    onChange={(e) => setManager(e.target.value)}
-    className="w-full border p-2 rounded-lg"
-  />
-
-  <button
-    onClick={() => {
-
-      const orderText = `
+                const orderText = `
 Замовлення:
 
 Клієнт: ${clientName}
 Телефон: ${clientPhone}
 Місто: ${clientCity}
 Адреса: ${clientAddress}
-Магазин: ${clientStore}
-Менеджер: ${manager}
+Магазин: ${clientShop}
+Менеджер: ${clientManager}
 
 Товари:
 
@@ -785,23 +690,24 @@ ${cart.map((p) =>
 Сума: ${totalPrice.toFixed(2)} грн
 `;
 
-      navigator.clipboard.writeText(orderText);
+                navigator.clipboard.writeText(orderText);
 
-      alert("Замовлення скопійовано");
+                alert("Замовлення скопійовано");
 
-    }}
-    className="w-full bg-green-600 text-white py-3 rounded-xl"
-  >
-    <button
-  onClick={exportToExcel}
-  className="w-full bg-black text-white py-3 rounded-xl"
->
-  Завантажити Excel
-</button>
-    Оформити замовлення
-  </button>
+              }}
+              className="w-full bg-green-600 text-white py-3 rounded-xl"
+            >
+              Оформити замовлення
+            </button>
 
-</div>
+            <button
+              onClick={exportToExcel}
+              className="w-full bg-black text-white py-3 rounded-xl"
+            >
+              Завантажити Excel
+            </button>
+
+          </div>
 
         </div>
 
