@@ -29,6 +29,12 @@ export default function Page() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const [selectedBrand, setSelectedBrand] = useState("INVU");
+  const [clientName, setClientName] = useState("");
+const [clientPhone, setClientPhone] = useState("");
+const [clientCity, setClientCity] = useState("");
+const [clientAddress, setClientAddress] = useState("");
+const [clientShop, setClientShop] = useState("");
+const [clientManager, setClientManager] = useState("");
   const [search, setSearch] = useState("");
   const [clientName, setClientName] = useState("");
 const [clientPhone, setClientPhone] = useState("");
@@ -158,6 +164,78 @@ const [manager, setManager] = useState("");
     0
   );
 const exportToExcel = () => {
+
+  const data = cart.map((p) => ({
+
+    Фото: p.image,
+
+    Артикул: p.name,
+
+    Бренд: p.brand,
+
+    Розміри: p.sizes,
+
+    Кількість: p.quantity,
+
+    Ціна: (
+      p.price *
+      44.2 *
+      1.02
+    ).toFixed(2),
+
+    Сума: (
+      p.price *
+      44.2 *
+      1.02 *
+      p.quantity
+    ).toFixed(2),
+
+    Клієнт: clientName,
+
+    Телефон: clientPhone,
+
+    Місто: clientCity,
+
+    Адреса: clientAddress,
+
+    Магазин: clientShop,
+
+    Менеджер: clientManager
+
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Замовлення"
+  );
+
+  const excelBuffer = XLSX.write(
+    workbook,
+    {
+      bookType: "xlsx",
+      type: "array"
+    }
+  );
+
+  const fileData = new Blob(
+    [excelBuffer],
+    {
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    }
+  );
+
+  saveAs(
+    fileData,
+    `zamovlennya_${clientName || "client"}.xlsx`
+  );
+
+};
 
   const data = cart.map((p) => ({
     Артикул: p.name,
@@ -461,6 +539,57 @@ const exportToExcel = () => {
           <h2 className="text-xl font-bold mb-4">
             Замовлення
           </h2>
+          <div className="space-y-2 mb-4">
+
+  <input
+    type="text"
+    placeholder="ПІБ / ФОП"
+    value={clientName}
+    onChange={(e) => setClientName(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Телефон"
+    value={clientPhone}
+    onChange={(e) => setClientPhone(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Місто"
+    value={clientCity}
+    onChange={(e) => setClientCity(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Адреса доставки"
+    value={clientAddress}
+    onChange={(e) => setClientAddress(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Назва магазину"
+    value={clientShop}
+    onChange={(e) => setClientShop(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+  <input
+    type="text"
+    placeholder="Менеджер"
+    value={clientManager}
+    onChange={(e) => setClientManager(e.target.value)}
+    className="w-full border p-2 rounded-lg"
+  />
+
+</div>
 <div className="max-h-[45vh] overflow-y-auto pr-2">
           {cart.map((p) => (
 
