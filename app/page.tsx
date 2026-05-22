@@ -18,7 +18,7 @@ type Product = {
 
 export default function Page() {
 
-  const SITE_PASSWORD = "optics2026";
+  const SITE_PASSWORD = "optics2026!";
 
   const [authorized, setAuthorized] = useState(false);
   const [password, setPassword] = useState("");
