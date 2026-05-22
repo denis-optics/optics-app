@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 type Product = {
   id: number;
@@ -155,7 +157,50 @@ const [manager, setManager] = useState("");
       ),
     0
   );
+const exportToExcel = () => {
 
+  const data = cart.map((p) => ({
+    Артикул: p.name,
+    Бренд: p.brand,
+    Кількість: p.quantity,
+    Ціна: (p.price * 44.2 * 1.02).toFixed(2),
+    Сума: (
+      p.price *
+      44.2 *
+      1.02 *
+      p.quantity
+    ).toFixed(2)
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Замовлення"
+  );
+
+  const excelBuffer = XLSX.write(
+    workbook,
+    {
+      bookType: "xlsx",
+      type: "array"
+    }
+  );
+
+  const fileData = new Blob(
+    [excelBuffer],
+    {
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    }
+  );
+
+  saveAs(fileData, "zamovlennya.xlsx");
+
+};
   if (!authorized) {
 
     return (
@@ -618,6 +663,12 @@ ${cart.map((p) =>
     }}
     className="w-full bg-green-600 text-white py-3 rounded-xl"
   >
+    <button
+  onClick={exportToExcel}
+  className="w-full bg-black text-white py-3 rounded-xl"
+>
+  Завантажити Excel
+</button>
     Оформити замовлення
   </button>
 
