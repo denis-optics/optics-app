@@ -405,7 +405,7 @@ export default function Page() {
 
         {/* КОРЗИНА */}
 
-        <div className="border rounded-2xl p-4 shadow sticky top-24 bg-white h-fit text-black">
+        <div className="border rounded-2xl p-4 shadow sticky top-24 bg-white text-black h-[85vh] overflow-y-auto">
 
           <h2 className="text-xl font-bold mb-4">
             Замовлення
