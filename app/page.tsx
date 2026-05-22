@@ -38,34 +38,26 @@ export default function Page() {
         const formatted: Product[] = data.map((item: any, index: number) => ({
           id: index,
 
-          name:
-            item["Название"] || "Без назви",
+          name: item["Название"] || "Без назви",
 
-          price:
-            Number(
-              String(item["Цена"] || "0")
-                .replace(",", ".")
-            ),
+          price: Number(
+            String(item["Цена"] || "0")
+              .replace(",", ".")
+          ),
 
-          stock:
-            Number(item["Остаток"] || 0),
+          stock: Number(item["Остаток"] || 0),
 
-          description:
-            item["Описание"] || "",
+          description: item["Описание"] || "",
 
-          image:
-            item["image"] || "/images/no-image.jpg",
+          image: item["image"] || "/images/no-image.jpg",
 
-          brand:
-            item["Торговая марка"] || "",
+          brand: item["Торговая марка"] || "",
 
-          promo:
-            String(item["Акция"] || "")
-              .toLowerCase()
-              .includes("ак"),
+          promo: String(item["Акция"] || "")
+            .toLowerCase()
+            .includes("ак"),
 
-          sizes:
-            item["Размеры"] || ""
+          sizes: item["Размеры"] || ""
         }));
 
         setProducts(formatted);
@@ -170,7 +162,7 @@ export default function Page() {
         }}
       >
 
-        <div className="bg-white/90 p-8 rounded-2xl shadow-2xl w-80">
+        <div className="bg-white/90 p-8 rounded-2xl shadow-2xl w-80 text-black">
 
           <h1 className="text-3xl font-bold mb-6 text-center">
             Вхід
@@ -213,7 +205,7 @@ export default function Page() {
 
   return (
 
-  <div className="p-6 bg-gray-100 min-h-screen text-black">
+    <div className="p-6 bg-gray-100 min-h-screen text-black">
 
       {/* ФИЛЬТРЫ */}
 
@@ -413,7 +405,7 @@ export default function Page() {
 
         {/* КОРЗИНА */}
 
-        className="border rounded-2xl p-4 shadow sticky top-24 bg-white h-fit text-black"
+        <div className="border rounded-2xl p-4 shadow sticky top-24 bg-white h-fit text-black">
 
           <h2 className="text-xl font-bold mb-4">
             Замовлення
@@ -499,9 +491,7 @@ export default function Page() {
           </div>
 
           <button className="mt-4 w-full bg-green-600 text-white py-3 rounded-xl">
-
             Оформити замовлення
-
           </button>
 
         </div>
