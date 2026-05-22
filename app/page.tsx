@@ -438,9 +438,51 @@ const [manager, setManager] = useState("");
                     {p.name}
                   </div>
 
-                  <div className="text-xs text-gray-500">
-                    x{p.quantity}
-                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+
+  <button
+    onClick={() => {
+
+      setCart(cart.map((item) =>
+        item.id === p.id
+          ? {
+              ...item,
+              quantity: Math.max(item.quantity - 1, 1)
+            }
+          : item
+      ));
+
+    }}
+    className="w-6 h-6 bg-gray-300 rounded text-black"
+  >
+    −
+  </button>
+
+  <span className="text-xs font-semibold">
+    {p.quantity}
+  </span>
+
+  <button
+    onClick={() => {
+
+      if (p.quantity >= p.stock) return;
+
+      setCart(cart.map((item) =>
+        item.id === p.id
+          ? {
+              ...item,
+              quantity: item.quantity + 1
+            }
+          : item
+      ));
+
+    }}
+    className="w-6 h-6 bg-gray-300 rounded text-black"
+  >
+    +
+  </button>
+
+</div>
 
                 </div>
 
