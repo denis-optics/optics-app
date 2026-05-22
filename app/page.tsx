@@ -416,7 +416,7 @@ const [manager, setManager] = useState("");
           <h2 className="text-xl font-bold mb-4">
             Замовлення
           </h2>
-<div className="max-h-[45vh] overflow-y-auto pr-2"></div>
+<div className="max-h-[45vh] overflow-y-auto pr-2">
           {cart.map((p) => (
 
             <div
