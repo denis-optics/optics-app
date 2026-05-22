@@ -213,7 +213,7 @@ export default function Page() {
 
   return (
 
-    <div className="p-6 bg-gray-100 min-h-screen">
+  <div className="p-6 bg-gray-100 min-h-screen text-black">
 
       {/* ФИЛЬТРЫ */}
 
@@ -286,7 +286,7 @@ export default function Page() {
 
               <div
                 key={p.id}
-                className="border rounded-2xl p-4 shadow bg-white relative"
+                className="border rounded-2xl p-4 shadow bg-white relative text-black"
               >
 
                 {p.promo && (
@@ -413,7 +413,7 @@ export default function Page() {
 
         {/* КОРЗИНА */}
 
-        <div className="border rounded-2xl p-4 shadow sticky top-24 bg-white h-fit">
+        className="border rounded-2xl p-4 shadow sticky top-24 bg-white h-fit text-black"
 
           <h2 className="text-xl font-bold mb-4">
             Замовлення
