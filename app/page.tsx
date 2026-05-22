@@ -1,7 +1,18 @@
 'use client'
 
-import { useState, useEffect } from "react";
-import * as XLSX from "xlsx";
+import { useEffect, useState } from "react";
+
+type Product = {
+  id: number;
+  name: string;
+  price: number;
+  stock: number;
+  description: string;
+  image: string;
+  brand: string;
+  promo: boolean;
+  sizes: string;
+};
 
 export default function Page() {
 
@@ -10,39 +21,57 @@ export default function Page() {
   const [authorized, setAuthorized] = useState(false);
   const [password, setPassword] = useState("");
 
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<any[]>([]);
-  const [quantities, setQuantities] = useState<any>({});
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const [selectedBrand, setSelectedBrand] = useState<string>("INVU");
+  const [selectedBrand, setSelectedBrand] = useState("INVU");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+
     fetch("https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1")
       .then((res) => res.json())
       .then((data) => {
 
-        const formatted = data.map((item: any, index: number) => ({
+        const formatted: Product[] = data.map((item: any, index: number) => ({
           id: index,
-          name: item["Название"] || "Без назви",
-          price: Number(
-            String(item["Цена"] || "0")
-              .replace(",", ".")
-          ),
-          stock: Number(item["Остаток"] || 0),
-          description: item["Описание"] || "",
-          image: item["image"] || "/images/no-image.jpg",
-          brand: item["Торговая марка"] || "",
+
+          name:
+            item["Название"] || "Без назви",
+
+          price:
+            Number(
+              String(item["Цена"] || "0")
+                .replace(",", ".")
+            ),
+
+          stock:
+            Number(item["Остаток"] || 0),
+
+          description:
+            item["Описание"] || "",
+
+          image:
+            item["image"] || "/images/no-image.jpg",
+
+          brand:
+            item["Торговая марка"] || "",
+
           promo:
             String(item["Акция"] || "")
               .toLowerCase()
               .includes("ак"),
-          sizes: item["Размеры"] || ""
+
+          sizes:
+            item["Размеры"] || ""
         }));
 
         setProducts(formatted);
+
       });
+
   }, []);
 
   const brands = [
@@ -60,7 +89,7 @@ export default function Page() {
 
     if (!product) return;
 
-    setQuantities((prev: any) => {
+    setQuantities((prev) => {
 
       const current = prev[id] || 1;
 
@@ -72,18 +101,20 @@ export default function Page() {
         ...prev,
         [id]: current + 1
       };
+
     });
   };
 
   const decreaseQty = (id: number) => {
 
-    setQuantities((prev: any) => ({
+    setQuantities((prev) => ({
       ...prev,
       [id]: Math.max((prev[id] || 1) - 1, 1)
     }));
+
   };
 
-  const toggleCart = (product: any) => {
+  const toggleCart = (product: Product) => {
 
     const qty = Math.min(
       quantities[product.id] || 1,
@@ -92,7 +123,9 @@ export default function Page() {
 
     if (cart.find((p) => p.id === product.id)) {
 
-      setCart(cart.filter((p) => p.id !== product.id));
+      setCart(
+        cart.filter((p) => p.id !== product.id)
+      );
 
     } else {
 
@@ -103,7 +136,9 @@ export default function Page() {
           quantity: qty
         }
       ]);
+
     }
+
   };
 
   const totalItems = cart.reduce(
@@ -114,7 +149,12 @@ export default function Page() {
   const totalPrice = cart.reduce(
     (sum, p) =>
       sum +
-      ((p.price * 44.2 * 1.02) * (p.quantity || 1)),
+      (
+        p.price *
+        44.2 *
+        1.02 *
+        (p.quantity || 1)
+      ),
     0
   );
 
@@ -130,7 +170,7 @@ export default function Page() {
         }}
       >
 
-        <div className="bg-white/90 p-8 rounded-2xl shadow-2xl w-80 backdrop-blur">
+        <div className="bg-white/90 p-8 rounded-2xl shadow-2xl w-80">
 
           <h1 className="text-3xl font-bold mb-6 text-center">
             Вхід
@@ -154,7 +194,9 @@ export default function Page() {
               } else {
 
                 alert("Невірний пароль");
+
               }
+
             }}
             className="w-full bg-blue-600 text-white py-3 rounded-xl"
           >
@@ -164,7 +206,9 @@ export default function Page() {
         </div>
 
       </div>
+
     );
+
   }
 
   return (
@@ -223,14 +267,19 @@ export default function Page() {
 
               const matchesSearch =
                 p.name.toLowerCase().includes(search.toLowerCase()) ||
-                p.brand.toLowerCase().includes(search.toLowerCase()) ||
-                p.description.toLowerCase().includes(search.toLowerCase());
+                p.brand.toLowerCase().includes(search.toLowerCase());
 
-              const hasStock = search
-                ? true
-                : p.stock > 0;
+              const hasStock =
+                search
+                  ? true
+                  : p.stock > 0;
 
-              return matchesBrand && matchesSearch && hasStock;
+              return (
+                matchesBrand &&
+                matchesSearch &&
+                hasStock
+              );
+
             })
 
             .map((p) => (
@@ -247,8 +296,6 @@ export default function Page() {
                   </div>
 
                 )}
-
-                {/* КАРТИНКА */}
 
                 <div
                   style={{
@@ -293,8 +340,6 @@ export default function Page() {
                   Розміри: {p.sizes}
                 </p>
 
-                {/* ЦЕНА */}
-
                 <p className="font-semibold mt-2">
 
                   {p.price} $
@@ -312,11 +357,10 @@ export default function Page() {
 
                 </p>
 
-                {/* ОСТАТОК */}
-
                 <p className="text-sm mt-1">
 
                   Залишок:
+
                   {" "}
 
                   {p.stock > 5
@@ -325,36 +369,30 @@ export default function Page() {
 
                 </p>
 
-                {/* КОЛИЧЕСТВО */}
-
                 <div className="flex items-center gap-2 mt-3">
 
                   <button
                     onClick={() => decreaseQty(p.id)}
-                    className="w-8 h-8 bg-gray-300 text-black rounded flex items-center justify-center"
+                    className="w-8 h-8 bg-gray-300 text-black rounded"
                   >
                     −
                   </button>
 
                   <span className="w-6 text-center font-semibold">
+
                     {quantities[p.id] || 1}
+
                   </span>
 
                   <button
                     onClick={() => increaseQty(p.id)}
                     disabled={(quantities[p.id] || 1) >= p.stock}
-                    className={`w-8 h-8 rounded flex items-center justify-center ${
-                      (quantities[p.id] || 1) >= p.stock
-                        ? "bg-gray-200 text-gray-400"
-                        : "bg-gray-300 text-black"
-                    }`}
+                    className="w-8 h-8 bg-gray-300 text-black rounded"
                   >
                     +
                   </button>
 
                 </div>
-
-                {/* КНОПКА */}
 
                 <button
                   onClick={() => toggleCart(p)}
@@ -368,6 +406,7 @@ export default function Page() {
                 </button>
 
               </div>
+
             ))}
 
         </div>
@@ -440,8 +479,11 @@ export default function Page() {
           <div className="mt-4 border-t pt-4 text-sm">
 
             <div className="flex justify-between">
+
               <span>Всього штук:</span>
+
               <span>{totalItems}</span>
+
             </div>
 
             <div className="flex justify-between font-bold mt-2">
@@ -502,5 +544,7 @@ export default function Page() {
       )}
 
     </div>
+
   );
+
 }
