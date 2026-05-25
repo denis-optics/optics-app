@@ -21,7 +21,7 @@ type CartItem = Product & {
 }
 
 const SITE_PASSWORD = 'optics2026'
-// Единый курс: 44.2 + 2% наценки
+// Єдиний курс: 44.2 + 2% націнки
 const EXCHANGE_RATE = 44.2 * 1.02 
 
 const BRANDS = [
@@ -33,17 +33,12 @@ const BRANDS = [
   'STYLE MARK CLIP-ON'
 ]
 
-// Доступные фоны для экрана входа
-const BACKGROUND_PRESETS = [
-  { id: 'optics-bg-1', name: 'Стильні окуляри', url: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=1200&q=80' },
-  { id: 'optics-bg-2', name: 'Світлий інтер\'єр', url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1200&q=80' },
-  { id: 'optics-bg-3', name: 'Мінімалізм', url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=1200&q=80' }
-]
+// Фіксоване фонове зображення для екрану входу
+const START_BACKGROUND_URL = 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=1600&q=80'
 
 export default function Page() {
   const [authorized, setAuthorized] = useState(false)
   const [password, setPassword] = useState('')
-  const [bgImage, setBgImage] = useState(BACKGROUND_PRESETS[0].url)
 
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -63,7 +58,7 @@ export default function Page() {
   const [clientStore, setClientStore] = useState('')
   const [manager, setManager] = useState('')
 
-  // Загрузка данных
+  // Завантаження даних
   useEffect(() => {
     fetch('https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1')
       .then((res) => res.json())
@@ -84,12 +79,12 @@ export default function Page() {
       .catch((err) => console.error("Помилка завантаження даних:", err))
   }, [])
 
-  // Изменение количества с синхронизацией в корзине
+  // Зміна кількості із синхронізацією в кошику
   const updateQuantity = (id: number, newQty: number) => {
     const product = products.find((p) => p.id === id)
     if (!product) return
 
-    // Валидация границ остатка
+    // Валідація меж залишку на складі
     const targetQty = Math.max(1, Math.min(newQty, product.stock))
 
     setQuantities((prev) => ({ ...prev, [id]: targetQty }))
@@ -121,15 +116,15 @@ export default function Page() {
     }
   }
 
-  // Функция для красивого отображения остатка (Пункт 5)
+  // Універсальна функція відображення залишку (більше 5 або точна кількість)
   const renderStockStatus = (stock: number) => {
     if (stock > 5) {
-      return <span className="text-green-600 font-medium">більше 5</span>
+      return <span className="text-green-600 font-semibold">більше 5</span>
     }
     return <span className="text-orange-600 font-bold">{stock} шт</span>
   }
 
-  // Оптимизированные подсчеты через useMemo
+  // Оптимізовані підрахунки через useMemo
   const { totalItems, totalPriceUAH, totalPriceUSD } = useMemo(() => {
     return cart.reduce(
       (acc, item) => {
@@ -142,7 +137,7 @@ export default function Page() {
     )
   }, [cart])
 
-  // Фильтрация продуктов
+  // Фільтрація продуктів
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchesBrand = selectedBrand === p.brand
@@ -220,7 +215,7 @@ export default function Page() {
       if (!res.ok) throw new Error()
 
       exportToExcel()
-      alert('Замовлення успешно відправлено')
+      alert('Замовлення успішно відправлено')
       
       setCart([])
       setQuantities({})
@@ -238,11 +233,14 @@ export default function Page() {
   if (!authorized) {
     return (
       <div 
-        className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center transition-all duration-500 p-4"
-        style={{ backgroundImage: `url(${bgImage})` }}
+        className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center p-4 relative"
+        style={{ backgroundImage: `url(${START_BACKGROUND_URL})` }}
       >
-        {/* Контрастное белоснежное окно входа с четким черным текстом */}
-        <div className="bg-white/95 p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-200 text-black backdrop-blur-sm">
+        {/* Затемняющий оверлей для лучшей фокусировки на окне */}
+        <div className="absolute inset-0 bg-black/40 z-0"></div>
+
+        {/* Контрастная белоснежная форма с четким черным текстом */}
+        <div className="bg-white/95 p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-200 text-black backdrop-blur-md relative z-10">
           <h1 className="text-3xl font-black mb-2 text-center text-gray-900 tracking-tight">ВХІД</h1>
           <p className="text-sm text-center text-gray-600 mb-6 font-medium">Оптика оптова платформа</p>
           
@@ -252,7 +250,7 @@ export default function Page() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && password === SITE_PASSWORD && setAuthorized(true)}
-            className="border-2 border-gray-300 w-full p-3.5 rounded-xl mb-4 text-center text-lg font-bold text-black focus:border-blue-600 focus:outline-none transition"
+            className="border-2 border-gray-300 w-full p-3.5 rounded-xl mb-4 text-center text-lg font-bold text-black focus:border-blue-600 focus:outline-none transition bg-white"
             autoFocus
           />
           <button
@@ -267,26 +265,6 @@ export default function Page() {
           >
             Увійти
           </button>
-
-          {/* Панель выбора фонового рисунка */}
-          <div className="mt-8 pt-4 border-t border-gray-200">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 text-center">Оберіть фон екрану:</p>
-            <div className="grid grid-cols-3 gap-2">
-              {BACKGROUND_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => setBgImage(preset.url)}
-                  className={`text-[10px] p-2 font-semibold rounded-lg border transition truncate ${
-                    bgImage === preset.url 
-                      ? 'bg-blue-50 border-blue-600 text-blue-700 ring-2 ring-blue-600/20' 
-                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {preset.name}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     )
@@ -294,7 +272,7 @@ export default function Page() {
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen text-black">
-      {/* Фильтры */}
+      {/* Фільтри */}
       <div className="sticky top-0 z-40 bg-white p-4 rounded-2xl shadow mb-6">
         <div className="flex gap-4">
           <input
@@ -317,7 +295,7 @@ export default function Page() {
       </div>
 
       <div className="grid grid-cols-4 gap-6">
-        {/* Сетка товаров */}
+        {/* Сітка товарів */}
         <div className="col-span-3 grid grid-cols-3 gap-4">
           {filteredProducts.map((p) => {
             const isInCart = cart.some((c) => c.id === p.id);
@@ -369,9 +347,9 @@ export default function Page() {
                     >
                       +
                     </button>
-                    {/* Строка остатка из пункта 5 */}
+                    {/* Відображення залишку в картці */}
                     <span className="text-xs text-gray-400 ml-auto whitespace-nowrap">
-                      В наявності: {renderStockStatus(p.stock)}
+                      Залишок: {renderStockStatus(p.stock)}
                     </span>
                   </div>
 
@@ -389,21 +367,19 @@ export default function Page() {
           })}
         </div>
 
-        {/* Боковая корзина (Пункты 1, 2, 3, 4) */}
+        {/* Бічна корзина */}
         <div className="border rounded-2xl shadow bg-white sticky top-24 h-[85vh] flex flex-col justify-between overflow-hidden">
-          {/* Шапка корзины */}
           <div className="p-4 border-b">
             <h2 className="text-xl font-bold">Замовлення</h2>
           </div>
 
-          {/* Скроллящийся блок со списком товаров + миниатюры (Пункт 1, 2) */}
+          {/* Скрол та маленькі картинки */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {cart.length === 0 ? (
-              <p className="text-gray-400 text-center mt-8">Корзина порожня</p>
+              <p className="text-gray-400 text-center mt-8">Кошик порожній</p>
             ) : (
               cart.map((p) => (
                 <div key={p.id} className="flex gap-3 items-center border-b pb-3 last:border-0">
-                  {/* Маленькая картинка товара */}
                   <img 
                     src={p.image} 
                     className="w-10 h-10 object-contain bg-gray-50 border rounded-lg flex-shrink-0 cursor-pointer" 
@@ -417,7 +393,7 @@ export default function Page() {
                       {(p.price * EXCHANGE_RATE * p.quantity).toFixed(2)} грн
                     </div>
                     
-                    {/* Регулировка количества прямо в корзине (Пункт 4) */}
+                    {/* Зміна кількості в кошику */}
                     <div className="flex items-center gap-1.5 mt-1.5">
                       <button 
                         onClick={() => decreaseQty(p.id)}
@@ -440,7 +416,7 @@ export default function Page() {
             )}
           </div>
 
-          {/* Жестко зафиксированный подвал с суммами и кнопками (Пункт 3) */}
+          {/* Фіксований підвал */}
           <div className="p-4 border-t bg-gray-50">
             <div className="flex justify-between text-sm font-medium text-gray-600">
               <span>Всього позицій:</span>
@@ -470,7 +446,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Модалка: Превью таблицы (Пункт 4 - Изменение количества) */}
+      {/* Модалка: Попередній перегляд (Таблиця із залишком) */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl p-6 overflow-hidden flex flex-col shadow-2xl">
@@ -491,6 +467,7 @@ export default function Page() {
                     <th className="p-3 border">Колекція</th>
                     <th className="p-3 border">Артикул</th>
                     <th className="p-3 border">Фото</th>
+                    <th className="p-3 border">Залишок</th>
                     <th className="p-3 border">Кількість</th>
                     <th className="p-3 border">Ціна</th>
                     <th className="p-3 border">Сума</th>
@@ -504,7 +481,11 @@ export default function Page() {
                       <td className="p-3 border">
                         <img src={p.image} className="w-12 h-12 object-contain bg-gray-50 border rounded" alt="" />
                       </td>
-                      {/* Управление количеством внутри предварительного просмотра */}
+                      {/* Відображення залишку в таблиці */}
+                      <td className="p-3 border text-sm">
+                        {renderStockStatus(p.stock)}
+                      </td>
+                      {/* Управління кількістю в таблиці */}
                       <td className="p-3 border">
                         <div className="flex items-center gap-2">
                           <button 
@@ -521,7 +502,6 @@ export default function Page() {
                             +
                           </button>
                         </div>
-                        <div className="text-[10px] text-gray-400 mt-1 text-center">доступно: {p.stock}</div>
                       </td>
                       <td className="p-3 border text-sm">
                         <span className="font-medium">{p.price}$</span> <br />
@@ -537,7 +517,6 @@ export default function Page() {
               </table>
             </div>
 
-            {/* Итоговая плашка в превью */}
             <div className="mt-4 p-4 bg-gray-50 rounded-xl border flex justify-between items-center">
               <span className="font-bold text-gray-700">Всього позицій у списку: <span className="text-gray-900 text-lg ml-1">{totalItems}</span></span>
               <span className="font-black text-xl text-green-700">Загальна сума: {totalPriceUAH.toFixed(2)} грн</span>
@@ -546,7 +525,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* Модалка: Оформление заказа */}
+      {/* Модалка: Оформлення замовлення */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-8 rounded-2xl w-full max-w-[500px] max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -614,11 +593,11 @@ export default function Page() {
         </div>
       )}
 
-      {/* Модалка: Зум картинки */}
+      {/* Модалка: Зум картинок */}
       {selectedImage && (
         <div
           onClick={() => setSelectedImage(null)}
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 cursor-zoom-out animate-fadeIn"
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 cursor-zoom-out"
         >
           <img src={selectedImage} className="max-w-[90%] max-h-[90%] object-contain" alt="Zoomed view" />
         </div>
