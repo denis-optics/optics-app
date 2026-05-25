@@ -8,7 +8,7 @@ interface Product {
   name: string;
   priceUSD: number;
   priceUAH: number;
-  stock: number; // Остаток, который приходит из вашей таблицы
+  stock: number;
   image: string;
 }
 
@@ -22,6 +22,11 @@ interface CartItem {
 }
 
 export default function OpticsApp() {
+  // --- СОСТОЯНИЯ ДЛЯ АВТОРИЗАЦИИ ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [password, setPassword] = useState('')
+  const [authError, setAuthError] = useState('')
+
   // --- СУЩЕСТВУЮЩИЕ СОСТОЯНИЯ ДЛЯ ДАННЫХ ИЗ GOOGLE SHEETS ---
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,15 +42,12 @@ export default function OpticsApp() {
   const [clientStore, setClientStore] = useState('')
   const [manager, setManager] = useState('')
 
-  // --- ВАШ СУЩЕСТВУЮЩИЙ ЗАПРОС К КЛИЕНТСКОМУ ИМПОРТУ (Google Sheets) ---
+  // --- ЗАГРУЗКА ДАННЫХ ИЗ GOOGLE SHEETS ---
   useEffect(() => {
     async function loadData() {
       try {
-        // Здесь остается ваш старый URL или fetch-запрос к Google Sheets API/роуту
         const res = await fetch('/api/get-products') 
         const data = await res.json()
-        
-        // Мапим данные точно так же, как у вас было настроено изначально
         if (Array.isArray(data)) {
           setProducts(data)
         }
@@ -57,6 +59,18 @@ export default function OpticsApp() {
     }
     loadData()
   }, [])
+
+  // --- ОБРАБОТКА ВХОДА С ПАРОЛЕМ ---
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    // 🔐 Укажите ваш желаемый пароль вместо '1234'
+    if (password === '1234') {
+      setIsAuthenticated(true)
+      setAuthError('')
+    } else {
+      setAuthError('Невірний пароль. Спробуйте ще раз.')
+    }
+  }
 
   // --- ЛОГИКА ВЗАИМОДЕЙСТВИЯ С КОРЗИНОЙ ---
   const addToCart = (prod: Product) => {
@@ -71,7 +85,6 @@ export default function OpticsApp() {
     })
   }
 
-  // Новая регулировка количества прямо в корзине
   const updateQuantity = (id: string, delta: number) => {
     setCart((prev) =>
       prev.map((item) => {
@@ -133,15 +146,71 @@ export default function OpticsApp() {
     p.name?.toLowerCase().includes(search.toLowerCase())
   )
 
+  // 🚪 ЭКРАН 1: ВЫСОКОКОНТРАСТНОЕ ОКНО ВХОДА (Если не авторизован)
+  if (!isAuthenticated) {
+    return (
+      <div 
+        className="relative flex min-h-screen items-center justify-center bg-cover bg-center px-4"
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=1200&q=80')" }}
+      >
+        {/* Затемняющий фоновый слой для создания глубокого контраста */}
+        <div className="absolute inset-0 bg-black/75"></div>
+
+        {/* Форма авторизации */}
+        <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/20 bg-black/60 p-8 shadow-2xl backdrop-blur-md">
+          <div className="mb-6 text-center">
+            <h1 className="text-3xl font-black tracking-tight text-white drop-shadow-md">
+              ОПТИКА ОПТ
+            </h1>
+            <p className="mt-2 text-sm font-medium text-gray-200 drop-shadow-xs">
+              Введіть ваш робочий пароль для доступу до каталогу товарів
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                placeholder="Введіть пароль..."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-white/30 bg-white px-4 py-3.5 text-center text-base font-bold text-gray-900 placeholder-gray-500 shadow-inner focus:border-blue-500 focus:bg-white focus:outline-none"
+                autoFocus
+              />
+            </div>
+
+            {authError && (
+              <p className="text-center text-xs font-bold text-red-400 bg-red-950/50 py-2 rounded-lg border border-red-900/50">
+                ⚠️ {authError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-blue-600 py-3.5 text-center text-base font-black text-white shadow-lg transition-all hover:bg-blue-500 active:scale-[0.99]"
+            >
+              Увійти в систему
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  // 📦 ЭКРАН 2: ОСНОВНОЙ КАТАЛОГ С СИНХРОНИЗАЦИЕЙ С GOOGLE SHEETS
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-500">Завантаження товарів з Google Таблиці...</div>
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-100 text-sm font-bold text-gray-500">
+        Синхронізація з Google Таблицею...
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-900">
       
       {/* СТРІЧКА ПОШУКУ */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-white p-4 shadow-sm">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
         <input
           type="text"
           placeholder="Пошук товару за брендом або моделлю..."
@@ -174,7 +243,7 @@ export default function OpticsApp() {
               />
             </div>
 
-            {/* Название и Логика Остатков (Если > 5, пишем "більше 5") */}
+            {/* Логика Остатков (Если > 5, пишем "більше 5") */}
             <div className="mb-2 flex-1">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-tight">{product.brand || 'Без бренду'}</h3>
               <p className="text-sm font-semibold text-gray-800 truncate">{product.name || 'Модель не вказана'}</p>
@@ -205,7 +274,7 @@ export default function OpticsApp() {
         ))}
       </div>
 
-      {/* ОКНО ЗАКАЗА И ПРЕДПРОСМОТРА (ФИКСИРОВАННЫЙ НИЗ + СКРОЛЛ ТОВАРОВ + РЕГУЛИРОВКА) */}
+      {/* ОКНО ЗАКАЗА И ПРЕДПРОСМОТРА (ФИКСИРОВАННЫЙ НИЗ + СКРОЛЛ + ОПТИМИЗАЦИЯ ТОВАРОВ) */}
       {showCheckout && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl">
@@ -277,7 +346,7 @@ export default function OpticsApp() {
 
               <hr className="border-gray-100" />
 
-              {/* СПИСОК ТОВАРОВ В КОРЗИНЕ (Скроллится внутри, картинки 40x40px) */}
+              {/* СПИСОК ТОВАРОВ В КОРЗИНЕ (Картинки 40x40px, скролл внутри) */}
               <div>
                 <p className="mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Товари у замовленні</p>
                 <div className="max-h-[200px] overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-100 bg-gray-50/50 p-2 space-y-1">
@@ -297,7 +366,7 @@ export default function OpticsApp() {
                         </div>
                       </div>
 
-                      {/* Регулировка количества прямо внутри окна предпросмотра */}
+                      {/* Кнопки регулировки количества */}
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5">
                           <button
@@ -326,7 +395,7 @@ export default function OpticsApp() {
 
             </div>
 
-            {/* ЗАКРЕПЛЕННЫЙ ПОДВАЛ (Сумма и кнопки действия — не уезжают вниз) */}
+            {/* ЗАКРЕПЛЕННЫЙ ПОДВАЛ */}
             <div className="border-t border-gray-100 bg-gray-50 p-5 rounded-b-2xl">
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-400 uppercase">Всього позицій: {cart.length}</span>
