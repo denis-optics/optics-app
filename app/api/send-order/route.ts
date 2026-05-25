@@ -2,55 +2,43 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
+    const body = await req.json().catch(() => null)
+    if (!body) return NextResponse.json({ success: false, message: "No body" }, { status: 400 })
 
+    // 🌟 ОБНОВЛЕННЫЙ НОВЫЙ ТОКЕН
     const BOT_TOKEN = '8902109006:AAFc8yDh3qUME30aUtIXHqSbgj1XJjKcq0w'
-    const CHAT_ID = '220058690'
-    // Безопасное экранирование базовых HTML символов
-    const escapeHtml = (text: string) => {
-      return String(text || '')
+    
+    // 🌟 ВСТАВЬТЕ СЮДА ID, КОТОРЫЙ ВЫ ПОЛУЧИЛИ НА ШАГЕ 1 (например '220058690' или номер группы с минусом)
+    const CHAT_ID = '220058690' 
+
+    const escapeHtml = (text: any) => {
+      return String(text || '-')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
     }
 
-    const clientName = escapeHtml(body.clientName)
-    const clientPhone = escapeHtml(body.clientPhone)
-    const clientCity = escapeHtml(body.clientCity)
-    const clientAddress = escapeHtml(body.clientAddress)
-    const clientStore = escapeHtml(body.clientStore)
-    const manager = escapeHtml(body.manager)
-    
-    // Форматируем список товаров
-    let productsList = escapeHtml(body.products)
-    if (productsList.length > 3500) {
-      productsList = productsList.substring(0, 3500) + '\n\n⚠️ Список скорочено через ліміт Telegram!';
-    }
-
-    // Собираем текст с использованием HTML-тегов <b> вместо звездочек
     const text = `<b>🛒 НОВЕ ЗАМОВЛЕННЯ</b>\n\n` +
-      `👤 <b>Клієнт:</b> ${clientName}\n` +
-      `📞 <b>Телефон:</b> ${clientPhone}\n` +
-      `🏙 <b>Місто:</b> ${clientCity}\n` +
-      `📦 <b>Адреса:</b> ${clientAddress}\n` +
-      `🏪 <b>Магазин:</b> ${clientStore}\n` +
-      `👨 <b>Менеджер:</b> ${manager}\n\n` +
+      `👤 <b>Клієнт:</b> ${escapeHtml(body.clientName)}\n` +
+      `📞 <b>Телефон:</b> ${escapeHtml(body.clientPhone)}\n` +
+      `🏙 <b>Місто:</b> ${escapeHtml(body.clientCity)}\n` +
+      `📦 <b>Адреса:</b> ${escapeHtml(body.clientAddress)}\n` +
+      `🏪 <b>Магазин:</b> ${escapeHtml(body.clientStore)}\n` +
+      `👨 <b>Менеджер:</b> ${escapeHtml(body.manager)}\n\n` +
       `━━━━━━━━━━━━━━\n\n` +
-      `${productsList}\n\n` +
+      `${escapeHtml(body.products).substring(0, 3000)}\n\n` +
       `━━━━━━━━━━━━━━\n\n` +
-      `💰 <b>Сума:</b> ${body.total || '0.00'} грн`
+      `💰 <b>Сума:</b> ${escapeHtml(body.total)} грн`
 
     const response = await fetch(
       `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: CHAT_ID,
-          text,
-          parse_mode: 'HTML', // HTML режим не падает при наличии знаков "-", "_", "["
+          text: text,
+          parse_mode: 'HTML',
         }),
       }
     )
@@ -58,14 +46,16 @@ export async function POST(req: Request) {
     const responseData = await response.json().catch(() => ({}))
 
     if (!response.ok) {
-      console.error('Ошибка от Telegram API:', responseData)
-      return NextResponse.json({ success: false, error: responseData }, { status: 500 })
+      return NextResponse.json({ 
+        success: false, 
+        error: "Telegram Error", 
+        telegramDescription: responseData.description || "Unknown"
+      }, { status: 400 })
     }
 
     return NextResponse.json({ success: true })
 
-  } catch (error) {
-    console.error('Критическая ошибка на сервере:', error)
-    return NextResponse.json({ success: false }, { status: 500 })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error?.message }, { status: 500 })
   }
 }
