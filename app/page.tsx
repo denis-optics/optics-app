@@ -1,135 +1,119 @@
 'use client'
 
-import { useEffect, useState } from "react";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+import { useEffect, useState } from 'react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
+import emailjs from '@emailjs/browser'
 
 type Product = {
-  id: number;
-  name: string;
-  price: number;
-  stock: number;
-  description: string;
-  image: string;
-  brand: string;
-  promo: boolean;
-  sizes: string;
-};
+  id: number
+  name: string
+  price: number
+  stock: number
+  description: string
+  image: string
+  brand: string
+  promo: boolean
+  sizes: string
+}
 
 export default function Page() {
 
-  const SITE_PASSWORD = "optics2026";
+  const SITE_PASSWORD = 'optics2026'
 
-  const [authorized, setAuthorized] = useState(false);
-  const [password, setPassword] = useState("");
+  const [authorized, setAuthorized] = useState(false)
+  const [password, setPassword] = useState('')
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<any[]>([]);
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([])
+  const [cart, setCart] = useState<any[]>([])
+  const [quantities, setQuantities] = useState<Record<number, number>>({})
+  const [search, setSearch] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState('INVU')
 
-  const [selectedBrand, setSelectedBrand] = useState("INVU");
-  const [search, setSearch] = useState("");
+  const [showPreview, setShowPreview] = useState(false)
+  const [showCheckout, setShowCheckout] = useState(false)
 
-  const [clientName, setClientName] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
-  const [clientCity, setClientCity] = useState("");
-  const [clientAddress, setClientAddress] = useState("");
-  const [clientStore, setClientStore] = useState("");
-  const [manager, setManager] = useState("");
-
-  const usdRate = 44.2;
-  const markup = 1.02;
+  const [clientName, setClientName] = useState('')
+  const [clientPhone, setClientPhone] = useState('')
+  const [clientCity, setClientCity] = useState('')
+  const [clientAddress, setClientAddress] = useState('')
+  const [clientStore, setClientStore] = useState('')
+  const [manager, setManager] = useState('')
+  const BOT_TOKEN = '8902109006:AAFc8yDh3qUME30aUtIXHqSbgj1XJjKcq0w'
+const CHAT_ID = '220058690'
+  const USD = 44.2
+  const RATE = 1.02
 
   useEffect(() => {
 
-    fetch("https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1")
+    fetch(
+      'https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1'
+    )
       .then((res) => res.json())
       .then((data) => {
 
-        const formatted: Product[] = data.map((item: any, index: number) => ({
+        const formatted: Product[] = data.map(
+          (item: any, index: number) => ({
+            id: index,
+            name: item['Название'] || 'Без назви',
+            price: Number(
+              String(item['Цена'] || '0').replace(',', '.')
+            ),
+            stock: Number(item['Остаток'] || 0),
+            description: item['Описание'] || '',
+            image: item['image'] || '/images/no-image.jpg',
+            brand: item['Торговая марка'] || '',
+            promo: String(item['Акция'] || '')
+              .toLowerCase()
+              .includes('ак'),
+            sizes: item['Размеры'] || ''
+          })
+        )
 
-          id: index,
+        setProducts(formatted)
 
-          name: item["Название"] || "Без названия",
+      })
 
-          price: Number(
-            String(item["Цена"] || "0").replace(",", ".")
-          ),
-
-          stock: Number(item["Остаток"] || 0),
-
-          description: item["Описание"] || "",
-
-          image: item["image"] || "/images/no-image.jpg",
-
-          brand: item["Торговая марка"] || "",
-
-          promo: String(item["Акция"] || "")
-            .toLowerCase()
-            .includes("ак"),
-
-          sizes: item["Размеры"] || ""
-
-        }));
-
-        setProducts(formatted);
-
-      });
-
-  }, []);
+  }, [])
 
   const brands = [
-    "INVU",
-    "STYLE MARK",
-    "PERSONA",
-    "INVU FRAME",
-    "INVU CLIP-ON",
-    "STYLE MARK CLIP-ON"
-  ];
+    'INVU',
+    'STYLE MARK',
+    'PERSONA',
+    'INVU FRAME',
+    'INVU CLIP-ON',
+    'STYLE MARK CLIP-ON'
+  ]
 
   const increaseQty = (id: number) => {
 
-    const product = products.find((p) => p.id === id);
+    const product = products.find((p) => p.id === id)
 
-    if (!product) return;
+    if (!product) return
 
-    setQuantities((prev) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [id]: Math.min((prev[id] || 1) + 1, product.stock)
+    }))
 
-      const current = prev[id] || 1;
-
-      if (current >= product.stock) return prev;
-
-      return {
-        ...prev,
-        [id]: current + 1
-      };
-
-    });
-
-  };
+  }
 
   const decreaseQty = (id: number) => {
 
     setQuantities((prev) => ({
       ...prev,
       [id]: Math.max((prev[id] || 1) - 1, 1)
-    }));
+    }))
 
-  };
+  }
 
   const toggleCart = (product: Product) => {
 
-    const qty = Math.min(
-      quantities[product.id] || 1,
-      product.stock
-    );
+    const qty = quantities[product.id] || 1
 
     if (cart.find((p) => p.id === product.id)) {
 
-      setCart(
-        cart.filter((p) => p.id !== product.id)
-      );
+      setCart(cart.filter((p) => p.id !== product.id))
 
     } else {
 
@@ -139,183 +123,247 @@ export default function Page() {
           ...product,
           quantity: qty
         }
-      ]);
+      ])
 
     }
 
-  };
+  }
 
-  const totalItems = cart.reduce(
+  const totalQty = cart.reduce(
     (sum, p) => sum + p.quantity,
     0
-  );
+  )
 
-  const totalUAH = cart.reduce(
-    (sum, p) =>
-      sum + (p.price * usdRate * markup * p.quantity),
+  const totalUsd = cart.reduce(
+    (sum, p) => sum + p.price * p.quantity,
     0
-  );
+  )
 
-  const totalUSD = cart.reduce(
+  const totalUah = cart.reduce(
     (sum, p) =>
-      sum + (p.price * p.quantity),
+      sum +
+      p.price *
+      USD *
+      RATE *
+      p.quantity,
     0
-  );
+  )
 
   const exportToExcel = () => {
 
-    const wb = XLSX.utils.book_new();
+    const wb = XLSX.utils.book_new()
 
-    const rows: any[][] = [];
+    const rows: any[] = []
 
-    rows.push(["ФИО клиента:", clientName]);
-    rows.push(["Контактная информация:", clientPhone]);
-    rows.push(["Адрес доставки:", `${clientCity}, ${clientAddress}`]);
-    rows.push(["Название магазина:", clientStore]);
-    rows.push(["Менеджер:", manager]);
-    rows.push(["Дата заказа:", new Date().toLocaleDateString("ru-RU")]);
+    rows.push(['ПІБ клієнта', clientName])
+    rows.push(['Контактна інформація', clientPhone])
+    rows.push(['Адреса доставки', `${clientCity}, ${clientAddress}`])
+    rows.push(['Назва магазину', clientStore])
+    rows.push(['Дата замовлення', new Date().toLocaleDateString()])
+    rows.push([])
 
-    rows.push([]);
     rows.push([
-      "Название коллекции",
-      "Артикул",
-      "Количество",
-      "Цена за шт грн",
-      "Сумма за позицию грн",
-      "Сумма за позицию $"
-    ]);
+      'Колекція',
+      'Артикул',
+      'Кількість',
+      'Ціна грн',
+      'Сума грн',
+      'Сума $'
+    ])
 
     cart.forEach((p) => {
-
-      const priceUAH =
-        p.price * usdRate * markup;
-
-      const totalPositionUAH =
-        priceUAH * p.quantity;
-
-      const totalPositionUSD =
-        p.price * p.quantity;
 
       rows.push([
         p.brand,
         p.name,
         p.quantity,
-        Number(priceUAH.toFixed(2)),
-        Number(totalPositionUAH.toFixed(2)),
-        Number(totalPositionUSD.toFixed(2))
-      ]);
+        (p.price * USD * RATE).toFixed(2),
+        (
+          p.price *
+          USD *
+          RATE *
+          p.quantity
+        ).toFixed(2),
+        (
+          p.price *
+          p.quantity
+        ).toFixed(2)
+      ])
 
-    });
+    })
 
-    rows.push([]);
+    rows.push([])
 
     rows.push([
-      "ИТОГО:",
-      "",
-      totalItems,
-      "",
-      Number(totalUAH.toFixed(2)),
-      Number(totalUSD.toFixed(2))
-    ]);
+      'РАЗОМ',
+      '',
+      totalQty,
+      '',
+      totalUah.toFixed(2),
+      totalUsd.toFixed(2)
+    ])
 
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const ws = XLSX.utils.aoa_to_sheet(rows)
 
-    ws["!cols"] = [
-      { wch: 28 },
-      { wch: 30 },
-      { wch: 14 },
+    ws['!cols'] = [
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 15 },
       { wch: 18 },
-      { wch: 24 },
-      { wch: 24 }
-    ];
+      { wch: 18 }
+    ]
 
     XLSX.utils.book_append_sheet(
       wb,
       ws,
-      "Заказ"
-    );
+      'Замовлення'
+    )
 
     const excelBuffer = XLSX.write(
       wb,
       {
-        bookType: "xlsx",
-        type: "array"
+        bookType: 'xlsx',
+        type: 'array'
       }
-    );
+    )
 
-    const fileData = new Blob(
+    const file = new Blob(
       [excelBuffer],
       {
         type:
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       }
-    );
+    )
 
     saveAs(
-      fileData,
-      `zakaz_${clientName || "client"}.xlsx`
-    );
+      file,
+      `Замовлення_${clientName}.xlsx`
+    )
 
-  };
+  }
+
+  const sendTelegram = async () => {
+
+    const BOT_TOKEN = 'YOUR_BOT_TOKEN'
+    const CHAT_ID = 'YOUR_CHAT_ID'
+
+    const text = `
+НОВЕ ЗАМОВЛЕННЯ
+
+Клієнт: ${clientName}
+Телефон: ${clientPhone}
+Місто: ${clientCity}
+Адреса: ${clientAddress}
+Магазин: ${clientStore}
+Менеджер: ${manager}
+
+Сума: ${totalUah.toFixed(2)} грн
+`
+
+    await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text
+        })
+      }
+    )
+
+  }
+
+  const sendOrder = async () => {
+
+    try {
+
+      await emailjs.send(
+        'YOUR_SERVICE_ID',
+        'YOUR_TEMPLATE_ID',
+        {
+          client_name: clientName,
+          client_phone: clientPhone,
+          client_city: clientCity,
+          client_address: clientAddress,
+          client_store: clientStore,
+          manager,
+          total: totalUah.toFixed(2),
+
+          products: cart.map((p) =>
+            `${p.name} x${p.quantity}`
+          ).join('\n')
+        },
+        'YOUR_PUBLIC_KEY'
+      )
+
+      await sendTelegram()
+
+      exportToExcel()
+
+      alert('Замовлення успішно відправлено')
+
+      setShowCheckout(false)
+
+    } catch (e) {
+
+      console.error(e)
+
+      alert('Помилка відправки')
+
+    }
+
+  }
 
   if (!authorized) {
 
     return (
 
-      <div
-        className="min-h-screen flex items-center justify-center bg-cover bg-center"
-        style={{
-          backgroundImage:
-            "url('/images/login-bg.jpg')"
-        }}
-      >
+      <div className="min-h-screen flex items-center justify-center bg-gray-200">
 
-        <div className="bg-white/90 p-8 rounded-2xl shadow-2xl w-80 text-black">
+        <div className="bg-white p-10 rounded-2xl shadow-2xl w-80">
 
           <h1 className="text-3xl font-bold mb-6 text-center">
-            Вход
+            Вхід
           </h1>
 
           <input
             type="password"
-            placeholder="Введите пароль"
+            placeholder="Пароль"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="border w-full p-3 rounded-xl mb-4 text-black"
+            className="border w-full p-3 rounded-xl mb-4"
           />
 
           <button
             onClick={() => {
 
               if (password === SITE_PASSWORD) {
-
-                setAuthorized(true);
-
+                setAuthorized(true)
               } else {
-
-                alert("Неверный пароль");
-
+                alert('Невірний пароль')
               }
 
             }}
             className="w-full bg-blue-600 text-white py-3 rounded-xl"
           >
-            Войти
+            Увійти
           </button>
 
         </div>
 
       </div>
 
-    );
+    )
 
   }
 
   return (
 
-    <div className="p-6 bg-gray-100 min-h-screen text-black">
-
-      {/* ФИЛЬТРЫ */}
+    <div className="p-6 bg-gray-100 min-h-screen">
 
       <div className="sticky top-0 z-50 bg-white p-4 rounded-2xl shadow mb-6">
 
@@ -323,27 +371,24 @@ export default function Page() {
 
           <input
             type="text"
-            placeholder="Поиск товара..."
+            placeholder="Пошук..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 bg-white text-black p-2 rounded-lg shadow-sm w-full"
+            className="border p-2 rounded-lg w-full"
           />
 
           <select
             value={selectedBrand}
-            onChange={(e) => setSelectedBrand(e.target.value)}
-            className="border border-gray-300 bg-white text-black p-2 rounded-lg shadow-sm"
+            onChange={(e) =>
+              setSelectedBrand(e.target.value)
+            }
+            className="border p-2 rounded-lg"
           >
 
             {brands.map((b) => (
-
-              <option
-                key={b}
-                value={b}
-              >
+              <option key={b}>
                 {b}
               </option>
-
             ))}
 
           </select>
@@ -354,8 +399,6 @@ export default function Page() {
 
       <div className="grid grid-cols-4 gap-6">
 
-        {/* ТОВАРЫ */}
-
         <div className="col-span-3 grid grid-cols-3 gap-4">
 
           {products
@@ -363,20 +406,14 @@ export default function Page() {
             .filter((p) => {
 
               const matchesBrand =
-                selectedBrand === p.brand;
+                p.brand === selectedBrand
 
               const matchesSearch =
-                p.name.toLowerCase().includes(search.toLowerCase()) ||
-                p.brand.toLowerCase().includes(search.toLowerCase());
+                p.name
+                  .toLowerCase()
+                  .includes(search.toLowerCase())
 
-              const hasStock =
-                search ? true : p.stock > 0;
-
-              return (
-                matchesBrand &&
-                matchesSearch &&
-                hasStock
-              );
+              return matchesBrand && matchesSearch
 
             })
 
@@ -384,45 +421,15 @@ export default function Page() {
 
               <div
                 key={p.id}
-                className="border rounded-2xl p-4 shadow bg-white relative text-black"
+                className="bg-white p-4 rounded-2xl shadow"
               >
 
-                {p.promo && (
+                <img
+                  src={p.image}
+                  className="h-48 w-full object-contain"
+                />
 
-                  <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-                    АКЦИЯ
-                  </div>
-
-                )}
-
-                <div
-                  style={{
-                    width: "100%",
-                    height: "180px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "#f5f5f5",
-                    borderRadius: "12px",
-                    padding: "8px"
-                  }}
-                >
-
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    onClick={() => setSelectedImage(p.image)}
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "100%",
-                      objectFit: "contain",
-                      cursor: "pointer"
-                    }}
-                  />
-
-                </div>
-
-                <h2 className="text-lg font-bold mt-2">
+                <h2 className="font-bold mt-3">
                   {p.name}
                 </h2>
 
@@ -430,58 +437,30 @@ export default function Page() {
                   {p.brand}
                 </p>
 
-                <p className="text-sm">
-                  {p.description}
-                </p>
-
-                <p className="text-sm text-gray-600">
-                  Размеры: {p.sizes}
-                </p>
-
-                <p className="font-semibold mt-2">
-
+                <p className="mt-2">
                   {p.price} $
-
-                  <span className="text-green-700 ml-2">
-
-                    (
-                    {(p.price * usdRate * markup).toFixed(2)}
-                    {" "}грн
-                    )
-
-                  </span>
-
                 </p>
 
-                <p className="text-sm mt-1">
-
-                  Остаток:
-
-                  {" "}
-
-                  {p.stock > 5
-                    ? "больше 5"
-                    : p.stock}
-
+                <p className="text-green-700">
+                  {(p.price * USD * RATE).toFixed(2)} грн
                 </p>
 
-                <div className="flex items-center gap-2 mt-3">
+                <div className="flex gap-2 mt-3">
 
                   <button
                     onClick={() => decreaseQty(p.id)}
-                    className="w-8 h-8 bg-gray-300 text-black rounded"
+                    className="w-8 h-8 bg-gray-200 rounded"
                   >
-                    −
+                    -
                   </button>
 
-                  <span className="w-6 text-center font-semibold">
+                  <div className="w-8 text-center">
                     {quantities[p.id] || 1}
-                  </span>
+                  </div>
 
                   <button
                     onClick={() => increaseQty(p.id)}
-                    disabled={(quantities[p.id] || 1) >= p.stock}
-                    className="w-8 h-8 bg-gray-300 text-black rounded"
+                    className="w-8 h-8 bg-gray-200 rounded"
                   >
                     +
                   </button>
@@ -490,12 +469,12 @@ export default function Page() {
 
                 <button
                   onClick={() => toggleCart(p)}
-                  className="mt-3 bg-blue-600 text-white px-3 py-2 rounded-xl w-full"
+                  className="w-full mt-3 bg-blue-600 text-white py-2 rounded-xl"
                 >
 
                   {cart.find((c) => c.id === p.id)
-                    ? "Убрать"
-                    : "Добавить"}
+                    ? 'Прибрати'
+                    : 'Додати'}
 
                 </button>
 
@@ -505,120 +484,28 @@ export default function Page() {
 
         </div>
 
-        {/* КОРЗИНА */}
+        <div className="bg-white rounded-2xl p-4 shadow sticky top-24 h-fit">
 
-        <div className="border rounded-2xl p-4 shadow sticky top-24 bg-white text-black h-[85vh] overflow-y-auto">
-
-          <h2 className="text-xl font-bold mb-4">
-            Заказ
+          <h2 className="text-2xl font-bold mb-4">
+            Кошик
           </h2>
 
-          <div className="space-y-3 mb-5">
-
-            <input
-              type="text"
-              placeholder="ФИО / ФОП"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="w-full border p-2 rounded-lg"
-            />
-
-            <input
-              type="text"
-              placeholder="Телефон"
-              value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
-              className="w-full border p-2 rounded-lg"
-            />
-
-            <input
-              type="text"
-              placeholder="Город"
-              value={clientCity}
-              onChange={(e) => setClientCity(e.target.value)}
-              className="w-full border p-2 rounded-lg"
-            />
-
-            <input
-              type="text"
-              placeholder="Адрес доставки"
-              value={clientAddress}
-              onChange={(e) => setClientAddress(e.target.value)}
-              className="w-full border p-2 rounded-lg"
-            />
-
-            <input
-              type="text"
-              placeholder="Название магазина"
-              value={clientStore}
-              onChange={(e) => setClientStore(e.target.value)}
-              className="w-full border p-2 rounded-lg"
-            />
-
-            <input
-              type="text"
-              placeholder="Менеджер"
-              value={manager}
-              onChange={(e) => setManager(e.target.value)}
-              className="w-full border p-2 rounded-lg"
-            />
-
-          </div>
-
-          <div className="max-h-[40vh] overflow-y-auto pr-2">
+          <div className="space-y-3">
 
             {cart.map((p) => (
 
               <div
                 key={p.id}
-                className="flex items-center justify-between mb-2 text-sm gap-2 border-b pb-2"
+                className="border-b pb-2"
               >
 
-                <div className="flex items-center gap-2">
-
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    className="w-10 h-10 object-contain border rounded"
-                  />
-
-                  <div>
-
-                    <div className="truncate w-28">
-                      {p.name}
-                    </div>
-
-                    <div className="text-xs text-gray-500">
-                      x{p.quantity}
-                    </div>
-
-                  </div>
-
+                <div className="font-semibold">
+                  {p.name}
                 </div>
 
-                <div className="text-xs">
-
-                  {(
-                    p.price *
-                    usdRate *
-                    markup *
-                    p.quantity
-                  ).toFixed(2)}
-
-                  {" "}грн
-
+                <div className="text-sm text-gray-500">
+                  {p.quantity} шт
                 </div>
-
-                <button
-                  onClick={() =>
-                    setCart(
-                      cart.filter((item) => item.id !== p.id)
-                    )
-                  }
-                  className="text-red-500 text-xs"
-                >
-                  ✕
-                </button>
 
               </div>
 
@@ -626,69 +513,251 @@ export default function Page() {
 
           </div>
 
-          <div className="mt-4 border-t pt-4 text-sm">
+          <div className="mt-6 border-t pt-4">
 
             <div className="flex justify-between">
-
-              <span>Всего штук:</span>
-
-              <span>{totalItems}</span>
-
+              <span>Штук:</span>
+              <span>{totalQty}</span>
             </div>
 
             <div className="flex justify-between font-bold mt-2">
-
-              <span>Сумма:</span>
-
+              <span>Сума:</span>
               <span>
-                {totalUAH.toFixed(2)} грн
+                {totalUah.toFixed(2)} грн
               </span>
-
             </div>
 
           </div>
 
           <button
-            onClick={exportToExcel}
-            className="w-full bg-black text-white py-3 rounded-xl mt-5"
+            onClick={() => setShowPreview(true)}
+            className="w-full mt-4 bg-gray-800 text-white py-3 rounded-xl"
           >
-            Скачать Excel
+            Перегляд замовлення
+          </button>
+
+          <button
+            onClick={() => setShowCheckout(true)}
+            className="w-full mt-3 bg-green-600 text-white py-3 rounded-xl"
+          >
+            Зробити замовлення
           </button>
 
         </div>
 
       </div>
 
-      {/* УВЕЛИЧЕНИЕ ФОТО */}
+      {showPreview && (
 
-      {selectedImage && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
 
-        <div
-          onClick={() => setSelectedImage(null)}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            background: "rgba(0,0,0,0.8)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000
-          }}
-        >
+          <div className="bg-white w-[95%] max-w-6xl rounded-2xl p-6 max-h-[90vh] overflow-auto">
 
-          <img
-            src={selectedImage}
-            alt=""
-            style={{
-              transform: "scale(1.2)",
-              maxWidth: "90%",
-              maxHeight: "90%",
-              objectFit: "contain"
-            }}
-          />
+            <div className="flex justify-between items-center mb-6">
+
+              <h2 className="text-3xl font-bold">
+                Попередній перегляд
+              </h2>
+
+              <button
+                onClick={() => setShowPreview(false)}
+                className="text-red-500 text-2xl"
+              >
+                ✕
+              </button>
+
+            </div>
+
+            <table className="w-full border-collapse">
+
+              <thead>
+
+                <tr className="bg-gray-100">
+
+                  <th className="border p-3">
+                    Колекція
+                  </th>
+
+                  <th className="border p-3">
+                    Артикул
+                  </th>
+
+                  <th className="border p-3">
+                    Фото
+                  </th>
+
+                  <th className="border p-3">
+                    Акція
+                  </th>
+
+                  <th className="border p-3">
+                    Ціна
+                  </th>
+
+                  <th className="border p-3">
+                    Сума
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {cart.map((p) => (
+
+                  <tr key={p.id}>
+
+                    <td className="border p-3">
+                      {p.brand}
+                    </td>
+
+                    <td className="border p-3">
+                      {p.name}
+                    </td>
+
+                    <td className="border p-3">
+
+                      <img
+                        src={p.image}
+                        className="h-16 object-contain mx-auto"
+                      />
+
+                    </td>
+
+                    <td className="border p-3 text-center">
+
+                      {p.promo
+                        ? 'АКЦІЯ'
+                        : '-'}
+
+                    </td>
+
+                    <td className="border p-3">
+
+                      {p.price}$
+
+                      <br />
+
+                      (
+                      {(p.price * USD * RATE).toFixed(2)}
+                      грн)
+
+                    </td>
+
+                    <td className="border p-3">
+
+                      {(p.price * p.quantity).toFixed(2)}$
+
+                      <br />
+
+                      (
+                      {(
+                        p.price *
+                        USD *
+                        RATE *
+                        p.quantity
+                      ).toFixed(2)}
+                      грн)
+
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {showCheckout && (
+
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+
+          <div className="bg-white w-full max-w-lg rounded-2xl p-8">
+
+            <h2 className="text-3xl font-bold mb-6">
+              Оформлення замовлення
+            </h2>
+
+            <div className="space-y-3">
+
+              <input
+                type="text"
+                placeholder="ПІБ / ФОП"
+                value={clientName}
+                onChange={(e) =>
+                  setClientName(e.target.value)
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Телефон"
+                value={clientPhone}
+                onChange={(e) =>
+                  setClientPhone(e.target.value)
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Місто"
+                value={clientCity}
+                onChange={(e) =>
+                  setClientCity(e.target.value)
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Адреса"
+                value={clientAddress}
+                onChange={(e) =>
+                  setClientAddress(e.target.value)
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Назва магазину"
+                value={clientStore}
+                onChange={(e) =>
+                  setClientStore(e.target.value)
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Менеджер"
+                value={manager}
+                onChange={(e) =>
+                  setManager(e.target.value)
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+            </div>
+
+            <button
+              onClick={sendOrder}
+              className="w-full mt-6 bg-green-600 text-white py-4 rounded-xl text-lg font-bold"
+            >
+              Відправити замовлення
+            </button>
+
+          </div>
 
         </div>
 
@@ -696,6 +765,6 @@ export default function Page() {
 
     </div>
 
-  );
+  )
 
 }
