@@ -6,8 +6,8 @@ export async function POST(req: Request) {
 
     const body = await req.json()
 
-    const BOT_TOKEN = 'ТВОЙ_BOT_TOKEN'
-    const CHAT_ID = 'ТВОЙ_CHAT_ID'
+    const BOT_TOKEN = '8295927449:AAGEBvmr0kGuqp09unPxXeMJ_u9z4X6ASJ8'
+    const CHAT_ID = '220058690'
 
     const text = `
 🛒 НОВЕ ЗАМОВЛЕННЯ
