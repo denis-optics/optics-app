@@ -4,9 +4,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
 
-    const BOT_TOKEN = '8295927449:AAGEBvmr0kGuqp09unPxXeMJ_u9z4X6ASJ8'
+    const BOT_TOKEN = '8902109006:AAFc8yDh3qUME30aUtIXHqSbgj1XJjKcq0w'
     const CHAT_ID = '220058690'
-
     // Безопасное экранирование базовых HTML символов
     const escapeHtml = (text: string) => {
       return String(text || '')
