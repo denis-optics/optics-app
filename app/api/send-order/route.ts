@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       secure: true,
       auth: {
         user: 'opticsite@ukr.ua',     
-        pass: 'pw9B85ZX9dN3sAJn',  
+        pass: 'racQ1UMaUtCCBOso',  
       },
     })
 
