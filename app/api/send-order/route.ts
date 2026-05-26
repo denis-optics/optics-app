@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         secure: true,         // ИСПРАВЛЕНО: true для 465 порта
         auth: {
           user: 'opticsite@ukr.net', 
-          pass: 'pw9B85ZX9dN3sAJn', // Убедитесь, что в настройках почты включены "Программные пароли"!
+          pass: 'racQ1UMaUtCCBOso', // Убедитесь, что в настройках почты включены "Программные пароли"!
         },
         connectionTimeout: 5000, // Тайм-аут подключения 5 секунд (чтобы сервер не зависал дольше)
         greetingTimeout: 5000,
