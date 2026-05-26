@@ -48,13 +48,11 @@ export default function Page() {
   const [selectedBrand, setSelectedBrand] = useState('INVU')
   const [search, setSearch] = useState('')
   
-  // Состояния для динамического курса и даты его изменения
   const [customRate, setCustomRate] = useState<number>(BASE_EXCHANGE_RATE)
   const [rateDate, setRateDate] = useState<string>('')
 
-  // Загрузка данных из Google Sheets и сохраненного курса из localStorage
+  // Загрузка сохраненного курса и товаров
   useEffect(() => {
-    // Восстанавливаем курс, если он был сохранен ранее
     const savedRateData = localStorage.getItem('optics_custom_rate')
     if (savedRateData) {
       try {
@@ -85,9 +83,9 @@ export default function Page() {
       .catch((err) => console.error("Помилка завантаження даних:", err))
   }, [])
 
-  const currentRate = role === 'admin' ? customRate : BASE_EXCHANGE_RATE
+  // ИСПРАВЛЕНО: Теперь гость тоже видит измененный курс, если заходит с этого же устройства/браузера для тестов
+  const currentRate = customRate
 
-  // Функция изменения курса с сохранением даты
   const handleRateChange = (newRate: number) => {
     setCustomRate(newRate)
     
@@ -111,7 +109,6 @@ export default function Page() {
   const [showCheckout, setShowCheckout] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 
-  // Поля формы заказа
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [clientCity, setClientCity] = useState('')
@@ -147,14 +144,18 @@ export default function Page() {
   const toggleCart = (product: Product) => {
     const qty = quantities[product.id] || 1
 
-    if (cart.find((p) => p.id === product.id)) {
+    if (cart.find((p) => p.id !== product.id)) {
       setCart(cart.filter((p) => p.id !== product.id))
     } else {
       setCart([...cart, { ...product, quantity: qty }])
     }
   }
 
+  // Изменен внешний вид для нулевых остатков
   const renderStockStatus = (stock: number) => {
+    if (stock === 0) {
+      return <span className="text-red-500 font-bold">немає в наявності</span>
+    }
     if (stock > 5) {
       return <span className="text-green-600 font-semibold">більше 5</span>
     }
@@ -173,6 +174,7 @@ export default function Page() {
     )
   }, [cart, currentRate])
 
+  // ИСПРАВЛЕНО: Логика фильтрации и насквозного поиска (показываем нулевые остатки при поиске)
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchesSearch =
@@ -181,9 +183,11 @@ export default function Page() {
         p.sizes.toLowerCase().includes(search.toLowerCase())
 
       if (search.trim() !== '') {
-        return matchesSearch && p.stock > 0
+        // Если идет поиск — показываем ВСЕ совпадения, даже с нулевым остатком
+        return matchesSearch
       }
       
+      // По умолчанию во вкладках брендов показываем только то, что в наличии
       return selectedBrand === p.brand && p.stock > 0
     })
   }, [products, selectedBrand, search])
@@ -338,7 +342,6 @@ export default function Page() {
             </select>
           </div>
 
-          {/* Блок курса валют с датой */}
           <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border">
             <div className="flex flex-col items-end">
               <span className="text-xs font-bold text-gray-700 leading-tight">Поточний курс $:</span>
@@ -364,7 +367,7 @@ export default function Page() {
           </div>
         </div>
         {search.trim() !== '' && (
-          <p className="text-xs text-blue-600 font-medium">⚠️ Активовано наскрізний пошук. Фільтр брендів тимчасово ігнорується.</p>
+          <p className="text-xs text-blue-600 font-medium">⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
         )}
       </div>
 
@@ -374,8 +377,15 @@ export default function Page() {
           {filteredProducts.map((p) => {
             const isInCart = cart.some((c) => c.id === p.id);
             const currentQty = quantities[p.id] || 1;
+            const isOutOfStock = p.stock === 0;
+
             return (
-              <div key={p.id} className="border rounded-2xl p-4 shadow bg-white relative flex flex-col justify-between">
+              <div 
+                key={p.id} 
+                className={`border rounded-2xl p-4 shadow bg-white relative flex flex-col justify-between ${
+                  isOutOfStock ? 'opacity-60 bg-gray-50' : ''
+                }`}
+              >
                 {p.promo && (
                   <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded z-10">
                     % АКЦІЯ
@@ -383,12 +393,14 @@ export default function Page() {
                 )}
 
                 <div>
-                  <div className="h-[180px] flex items-center justify-center bg-gray-100 rounded-xl overflow-hidden">
+                  <div className="h-[180px] flex items-center justify-center bg-gray-100 rounded-xl overflow-hidden grayscale-0">
                     <img
                       src={p.image}
                       alt={p.name}
                       onClick={() => setSelectedImage(p.image)}
-                      className="max-h-full object-contain cursor-pointer hover:scale-105 transition"
+                      className={`max-h-full object-contain cursor-pointer hover:scale-105 transition ${
+                        isOutOfStock ? 'grayscale' : ''
+                      }`}
                     />
                   </div>
                   <h2 className="font-bold mt-3 line-clamp-2 text-sm">{p.name}</h2>
@@ -406,35 +418,41 @@ export default function Page() {
 
                   <div className="flex items-center gap-2 mt-3 border-t pt-3">
                     <button
+                      disabled={isOutOfStock}
                       onClick={() => decreaseQty(p.id)}
-                      className="w-8 h-8 bg-gray-300 rounded font-bold hover:bg-gray-400 transition"
+                      className="w-8 h-8 bg-gray-300 rounded font-bold hover:bg-gray-400 transition disabled:opacity-30"
                     >
                       −
                     </button>
                     <input
                       type="number"
-                      value={currentQty}
+                      disabled={isOutOfStock}
+                      value={isOutOfStock ? 0 : currentQty}
                       onChange={(e) => updateQuantity(p.id, parseInt(e.target.value) || 1)}
-                      className="w-12 text-center font-semibold bg-transparent border-b focus:outline-none"
+                      className="w-12 text-center font-semibold bg-transparent border-b focus:outline-none disabled:text-gray-400"
                     />
                     <button
+                      disabled={isOutOfStock}
                       onClick={() => increaseQty(p.id)}
-                      className="w-8 h-8 bg-gray-300 rounded font-bold hover:bg-gray-400 transition"
+                      className="w-8 h-8 bg-gray-300 rounded font-bold hover:bg-gray-400 transition disabled:opacity-30"
                     >
                       +
                     </button>
                     <span className="text-xs text-gray-400 ml-auto whitespace-nowrap">
-                      Залишок: {renderStockStatus(p.stock)}
+                      {renderStockStatus(p.stock)}
                     </span>
                   </div>
 
                   <button
+                    disabled={isOutOfStock}
                     onClick={() => toggleCart(p)}
                     className={`mt-3 px-3 py-2 rounded-xl w-full text-white font-semibold transition text-sm ${
-                      isInCart ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
+                      isOutOfStock 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : isInCart ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
                     }`}
                   >
-                    {isInCart ? 'Прибрати' : 'Обрати'}
+                    {isOutOfStock ? 'Немає в наявності' : isInCart ? 'Прибрати' : 'Обрати'}
                   </button>
                 </div>
               </div>
