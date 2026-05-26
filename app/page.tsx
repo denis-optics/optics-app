@@ -22,7 +22,7 @@ type CartItem = Product & {
 
 const ADMIN_PASSWORD = 'admin2026'
 const GUEST_PASSWORD = 'optics2026'
-const BASE_EXCHANGE_RATE = 44.2 * 1.02 
+const DEFAULT_FALLBACK_RATE = 44.2 * 1.02 // На случай, если таблица не загрузится
 
 const BRANDS = [
   'INVU',
@@ -48,24 +48,35 @@ export default function Page() {
   const [selectedBrand, setSelectedBrand] = useState('INVU')
   const [search, setSearch] = useState('')
   
-  const [customRate, setCustomRate] = useState<number>(BASE_EXCHANGE_RATE)
-  const [rateDate, setRateDate] = useState<string>('')
+  // Курс теперь загружается из таблицы
+  const [currentRate, setCurrentRate] = useState<number>(DEFAULT_FALLBACK_RATE)
+  const [isRateLoading, setIsRateLoading] = useState(true)
   
-  // Состояние для открытия мобильной корзины
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
 
   useEffect(() => {
-    const savedRateData = localStorage.getItem('optics_custom_rate')
-    if (savedRateData) {
-      try {
-        const parsed = JSON.parse(savedRateData)
-        if (parsed.rate) setCustomRate(parsed.rate)
-        if (parsed.date) setRateDate(parsed.date)
-      } catch (e) {
-        console.error("Помилка парсингу збереженого курсу", e)
-      }
-    }
+    // 1. Загрузка курса со второй вкладки "Course"
+    fetch('https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Course')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data[0]) {
+          // Ищем значение в колонке "Курс"
+          const rateValue = data[0]['Курс']
+          if (rateValue) {
+            const parsedRate = Number(String(rateValue).replace(',', '.'))
+            if (!isNaN(parsedRate) && parsedRate > 0) {
+              setCurrentRate(parsedRate)
+            }
+          }
+        }
+        setIsRateLoading(false)
+      })
+      .catch((err) => {
+        console.error("Помилка завантаження курсу з таблиці:", err)
+        setIsRateLoading(false)
+      })
 
+    // 2. Загрузка товаров с первой вкладки "Sheet1"
     fetch('https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1')
       .then((res) => res.json())
       .then((data) => {
@@ -82,30 +93,8 @@ export default function Page() {
         }))
         setProducts(formatted)
       })
-      .catch((err) => console.error("Помилка завантаження даних:", err))
+      .catch((err) => console.error("Помилка завантаження даних товарів:", err))
   }, [])
-
-  const currentRate = customRate
-
-  const handleRateChange = (newRate: number) => {
-    setCustomRate(newRate)
-    
-    const now = new Date()
-    const formattedDate = now.toLocaleString('uk-UA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-    
-    setRateDate(formattedDate)
-
-    localStorage.setItem('optics_custom_rate', JSON.stringify({
-      rate: newRate,
-      date: formattedDate
-    }))
-  }
 
   const [showCheckout, setShowCheckout] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -267,7 +256,7 @@ export default function Page() {
       if (!res.ok) throw new Error()
 
       saveAs(excelBlob, `zamovlennya_${clientName || 'client'}.xlsx`)
-      alert('Замовлення успешно відправлено на пошту та у Telegram!')
+      alert('Замовлення успішно відправлено на пошту та у Telegram!')
       
       setCart([])
       setQuantities({})
@@ -315,7 +304,6 @@ export default function Page() {
     )
   }
 
-  // Общий компонент верстки корзины (чтобы не дублировать код для десктопа и мобилки)
   const CartContent = () => (
     <>
       <div className="p-4 border-b flex justify-between items-center bg-white">
@@ -402,7 +390,7 @@ export default function Page() {
 
   return (
     <div className="p-3 sm:p-6 bg-gray-100 min-h-screen text-black pb-24 lg:pb-6">
-      {/* АДАПТИВНАЯ ПАНЕЛЬ ФИЛЬТРОВ */}
+      {/* ПАНЕЛЬ ФИЛЬТРОВ И КУРСА */}
       <div className="sticky top-0 z-40 bg-white p-3 sm:p-4 rounded-2xl shadow mb-4 sm:mb-6 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row gap-2.5 flex-1 w-full">
@@ -425,30 +413,19 @@ export default function Page() {
             </select>
           </div>
 
-          {/* Блок курса валют */}
-          <div className="flex items-center justify-between lg:justify-end gap-3 bg-gray-50 p-2 rounded-xl border w-full lg:w-auto">
+          {/* Информационный блок курса для всех устройств */}
+          <div className="flex items-center justify-between lg:justify-end gap-3 bg-gray-50 p-2.5 rounded-xl border w-full lg:w-auto">
             <div className="flex flex-col items-start lg:items-end">
               <span className="text-[11px] sm:text-xs font-bold text-gray-700 leading-tight">Поточний курс $:</span>
-              {rateDate && (
-                <span className="text-[9px] sm:text-[10px] text-gray-400 font-mono mt-0.5">
-                  Змінено: {rateDate}
-                </span>
-              )}
+              <span className="text-[9px] sm:text-[10px] text-gray-400 font-mono mt-0.5">
+                {isRateLoading ? "Оновлення..." : "Завантажено з Google Таблиці"}
+              </span>
             </div>
             
             <div className="flex items-center gap-1.5">
-              {role === 'admin' ? (
-                <input
-                  type="number"
-                  step="0.01"
-                  value={customRate}
-                  onChange={(e) => handleRateChange(parseFloat(e.target.value) || 0)}
-                  className="w-20 sm:w-24 p-1 text-center font-black text-sm sm:text-base text-blue-600 bg-white border rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-              ) : (
-                <span className="font-black text-gray-900 text-sm sm:text-lg">{currentRate.toFixed(2)} грн</span>
-              )}
-              {role === 'admin' && <span className="text-[10px] text-green-600 font-medium bg-green-50 px-1 py-0.5 rounded border border-green-200">(Адмін)</span>}
+              <span className="font-black text-blue-600 text-sm sm:text-lg bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
+                {currentRate.toFixed(2)} грн
+              </span>
             </div>
           </div>
         </div>
@@ -457,10 +434,8 @@ export default function Page() {
         )}
       </div>
 
-      {/* ОСНОВНАЯ СЕТКА И СТРУКТУРА */}
+      {/* КАТАЛОГ */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Адаптивная сетка товаров (1 колонка на мобилках, 2 на планшетах, 3 на десктопе) */}
         <div className="col-span-1 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {filteredProducts.map((p) => {
             const isInCart = cart.some((c) => c.id === p.id);
@@ -548,13 +523,13 @@ export default function Page() {
           })}
         </div>
 
-        {/* ДЕСКТОПНАЯ БОКОВАЯ КОРЗИНА (скрыта на мобилках) */}
+        {/* ДЕСКТОПНАЯ БОКОВАЯ КОРЗИНА */}
         <div className="hidden lg:flex border rounded-2xl shadow bg-white sticky top-24 h-[85vh] flex-col justify-between overflow-hidden">
           <CartContent />
         </div>
       </div>
 
-      {/* ПЛАВАЮЩАЯ НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ */}
+      {/* МОБИЛЬНАЯ НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ */}
       {cart.length > 0 && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl p-3 z-40 flex items-center justify-between gap-4 rounded-t-2xl">
           <div className="flex flex-col">
@@ -570,16 +545,16 @@ export default function Page() {
         </div>
       )}
 
-      {/* МОБИЛЬНАЯ КОРЗИНА ВО ВЕСЬ ЭКРАН (выезжающая панель) */}
+      {/* МОБИЛЬНАЯ КОРЗИНА ВО ВЕСЬ ЭКРАН */}
       {isMobileCartOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/60 z-50 flex flex-col justify-end">
-          <div className="bg-white rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+          <div className="bg-white rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
             <CartContent />
           </div>
         </div>
       )}
 
-      {/* МОДАЛКА: Предварительный просмотр заказа (Адаптированная) */}
+      {/* МОДАЛКА: ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white w-full max-w-6xl h-[95vh] lg:h-[85vh] rounded-2xl p-4 sm:p-6 overflow-hidden flex flex-col shadow-2xl">
@@ -593,11 +568,10 @@ export default function Page() {
               </button>
             </div>
             
-            {/* Обертка для скролла таблицы на телефонах */}
             <div className="overflow-auto flex-1 border rounded-xl bg-white text-xs sm:text-sm">
               <table className="w-full border-collapse text-left min-w-[700px]">
                 <thead>
-                  <tr className="bg-gray-100静态 top-0 shadow-sm z-10 text-gray-700 font-bold">
+                  <tr className="bg-gray-100 font-bold text-gray-700">
                     <th className="p-2 sm:p-3 border">Колекція</th>
                     <th className="p-2 sm:p-3 border">Артикул</th>
                     <th className="p-2 sm:p-3 border text-center">Фото</th>
@@ -617,7 +591,7 @@ export default function Page() {
                         <div className="w-16 h-16 bg-gray-50 rounded-lg border overflow-hidden flex items-center justify-center mx-auto">
                           <img 
                             src={p.image} 
-                            className="max-w-full max-h-full object-contain cursor-zoom-in" 
+                            className="max-w-full max-h-full object-contain" 
                             alt="" 
                             onClick={() => setSelectedImage(p.image)}
                           />
@@ -666,7 +640,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* МОДАЛКА: Оформление заказа (Адаптированная под мобильный ввод) */}
+      {/* МОДАЛКА: ОФОРМЛЕНИЕ ЗАКАЗА */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white p-5 sm:p-8 rounded-2xl w-full max-w-[550px] max-h-[95vh] overflow-y-auto shadow-2xl text-sm">
