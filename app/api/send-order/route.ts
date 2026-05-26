@@ -19,19 +19,27 @@ export async function POST(req: Request) {
     // Извлекаем прикрепленный файл Excel
     const excelFile = formData.get('excelFile') as File | null
 
-    // Настройки Telegram бота (Укажите ID вашей группы!)
+    // Настройки Telegram бота
     const BOT_TOKEN = '8902109006:AAFc8yDh3qUME30aUtIXHqSbgj1XJjKcq0w'
-    const CHAT_ID = '-100220058690' 
+    const CHAT_ID = '-1003801504284' 
 
-    // 1. Форматируем лаконичную ШАПКУ для Telegram (без простыни товаров)
+    // Защита от спецсимволов HTML для Telegram
+    const escapeHtml = (text: string) => {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+    }
+
+    // 1. Форматируем лаконичную ШАПКУ для Telegram
     const tgText = `<b>🛒 НОВЕ ЗАМОВЛЕННЯ</b>\n\n` +
-      `👤 <b>Клієнт:</b> ${clientName}\n` +
-      `📞 <b>Телефон:</b> ${clientPhone}\n` +
-      `🏙 <b>Місто:</b> ${clientCity}\n` +
-      `📦 <b>Адреса:</b> ${clientAddress}\n` +
-      `🏪 <b>Магазин:</b> ${clientStore}\n` +
-      `👨 <b>Менеджер:</b> ${manager}\n` +
-      `💬 <b>Коментар:</b> ${comment}\n\n` +
+      `👤 <b>Клієнт:</b> ${escapeHtml(clientName)}\n` +
+      `📞 <b>Телефон:</b> ${escapeHtml(clientPhone)}\n` +
+      `🏙 <b>Місто:</b> ${escapeHtml(clientCity)}\n` +
+      `📦 <b>Адреса:</b> ${escapeHtml(clientAddress)}\n` +
+      `🏪 <b>Магазин:</b> ${escapeHtml(clientStore)}\n` +
+      `👨 <b>Менеджер:</b> ${escapeHtml(manager)}\n` +
+      `💬 <b>Коментар:</b> ${escapeHtml(comment)}\n\n` +
       `━━━━━━━━━━━━━━\n\n` +
       `💰 <b>Сума:</b> ${totalUSD}$ (${totalUAH} грн)\n\n` +
       `📎 <i>Детальний список товарів прикріплено у файлі Excel нижче.</i>`
@@ -43,7 +51,6 @@ export async function POST(req: Request) {
       tgFormData.append('caption', tgText)
       tgFormData.append('parse_mode', 'HTML')
       
-      // Превращаем File в Blob для корректной передачи в Telegram API
       const buffer = Buffer.from(await excelFile.arrayBuffer())
       const blob = new Blob([buffer], { type: excelFile.type })
       tgFormData.append('document', blob, excelFile.name)
@@ -56,24 +63,30 @@ export async function POST(req: Request) {
       if (!tgResponse.ok) {
         const errLog = await tgResponse.json().catch(() => ({}))
         console.error('Помилка отправки документа в Telegram:', errLog)
+        
+        // Резервный текстовый вариант, если файл заблокирован API
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: CHAT_ID, text: tgText, parse_mode: 'HTML' })
+        })
       }
     }
 
     // 3. Отправка заказа НА ПОЧТУ (Email) через Nodemailer
-    // НАСТРОЙТЕ СВОИ ДАННЫЕ SMTP ТУТ:
     const transporter = nodemailer.createTransport({
-      host: 'smtp.ukr.ua', // Ваш SMTP сервер (например, smtp.gmail.com)
-      port: 465,            // Порт (обычно 465 или 587)
+      host: 'smtp.ukr.net', // Для адресов @ukr.net и @ukr.ua обычно используется smtp.ukr.net
+      port: 465,            
       secure: true,
       auth: {
-        user: 'opticsite@ukr.ua',     // Логин вашей почты отправителя
-        pass: 'pw9B85ZX9dN3sAJn',  // Пароль приложения (App Password)
+        user: 'opticsite@ukr.ua',     
+        pass: 'pw9B85ZX9dN3sAJn',  
       },
     })
 
     // HTML-текст для письма
     const emailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; rounded: 12px;">
+      <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 12px;">
         <h2 style="color: #16a34a; margin-top: 0;">🛒 Нове замовлення на платформі</h2>
         <hr/>
         <p><b>Клієнт:</b> ${clientName}</p>
@@ -93,8 +106,8 @@ export async function POST(req: Request) {
       const fileBuffer = Buffer.from(await excelFile.arrayBuffer())
       
       await transporter.sendMail({
-        from: '"Оптика Платформа" <ваша_почта@meta.ua>', 
-        to: 'marinevich@ukr.com', // Email администратора или менеджера
+        from: '"Оптика Платформа" <opticsite@ukr.ua>', // Почта отправителя должна совпадать с auth.user
+        to: 'marinevich@ukr.com', 
         subject: `Нове замовлення: ${clientName}`,
         html: emailHtml,
         attachments: [

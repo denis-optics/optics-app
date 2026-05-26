@@ -162,7 +162,7 @@ export default function Page() {
     rows.push(['Адреса доставки', clientAddress])
     rows.push(['Назва магазину', clientStore])
     rows.push(['Менеджер', manager])
-    rows.push(['Коментарій', comment])
+    rows.push(['Коментар', comment])
     rows.push(['Дата замовлення', new Date().toLocaleDateString()])
     rows.push([])
     rows.push(['Колекція', 'Артикул', 'Розміри', 'Кількість', 'Ціна $', 'Ціна грн', 'Сума $', 'Сума грн'])
@@ -479,7 +479,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Модалка: Предварительный просмотр заказа с увеличенными фото и ячейками */}
+      {/* Модалка: Предварительный просмотр заказа */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-6xl h-[85vh] rounded-2xl p-6 overflow-hidden flex flex-col shadow-2xl">
@@ -512,7 +512,6 @@ export default function Page() {
                     <tr key={p.id} className="hover:bg-gray-50 transition">
                       <td className="p-3 border text-sm font-medium text-gray-600">{p.brand}</td>
                       <td className="p-3 border font-bold text-gray-900 text-sm">{p.name}</td>
-                      {/* Большая ячейка для фото */}
                       <td className="p-2 border text-center w-28 h-28 min-w-[112px]">
                         <div className="w-24 h-24 bg-gray-50 rounded-xl border overflow-hidden flex items-center justify-center mx-auto">
                           <img 
@@ -566,7 +565,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* Модалка: Оформление заказа (с комментариями и переименованной кнопкой) */}
+      {/* Модалка: Оформление заказа */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-8 rounded-2xl w-full max-w-[550px] max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -620,7 +619,6 @@ export default function Page() {
                 onChange={(e) => setManager(e.target.value)}
                 className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
               />
-              {/* Поле комментариев */}
               <textarea
                 placeholder="Ваші коментарі до замовлення..."
                 value={comment}
@@ -637,7 +635,6 @@ export default function Page() {
               >
                 Скасувати
               </button>
-              {/* Переименованная кнопка действия */}
               <button
                 onClick={sendOrder}
                 className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/20"
@@ -649,7 +646,6 @@ export default function Page() {
         </div>
       )}
 
-      {/* Просмотр полноразмерных фото */}
       {selectedImage && (
         <div
           onClick={() => setSelectedImage(null)}
