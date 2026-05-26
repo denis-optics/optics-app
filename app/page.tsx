@@ -34,7 +34,7 @@ const BRANDS = [
 ]
 
 // Фіксоване фонове зображення для екрану входу
-const START_BACKGROUND_URL = 'https://www.invueyewear.com/how-our-glasses-are-made'
+const START_BACKGROUND_URL = 'https://static.wixstatic.com/media/65047e_947e4b6f7a1a4b9e955d24d90c71176df000.jpg/v1/fill/w_694,h_660,al_c,q_85,usm_0.33_1.00_0.00,enc_avif,quality_auto/65047e_947e4b6f7a1a4b9e955d24d90c71176df000.jpg'
 
 export default function Page() {
   const [authorized, setAuthorized] = useState(false)
