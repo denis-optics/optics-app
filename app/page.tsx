@@ -91,7 +91,6 @@ export default function Page() {
   const handleRateChange = (newRate: number) => {
     setCustomRate(newRate)
     
-    // Форматируем текущую дату и время (например: 26.05.2026, 16:45)
     const now = new Date()
     const formattedDate = now.toLocaleString('uk-UA', {
       day: '2-digit',
@@ -103,7 +102,6 @@ export default function Page() {
     
     setRateDate(formattedDate)
 
-    // Записываем структуру в память браузера
     localStorage.setItem('optics_custom_rate', JSON.stringify({
       rate: newRate,
       date: formattedDate
@@ -622,4 +620,81 @@ export default function Page() {
             <div className="space-y-3">
               <input
                 type="text"
-                placeholder="ПІБ / ФО
+                placeholder="ПІБ / ФОП *"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Телефон *"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+                className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Місто"
+                value={clientCity}
+                onChange={(e) => setClientCity(e.target.value)}
+                className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Адреса доставки"
+                value={clientAddress}
+                onChange={(e) => setClientAddress(e.target.value)}
+                className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Назва магазину"
+                value={clientStore}
+                onChange={(e) => setClientStore(e.target.value)}
+                className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Менеджер"
+                value={manager}
+                onChange={(e) => setManager(e.target.value)}
+                className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              />
+              <textarea
+                placeholder="Ваші коментарі до замовлення..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={3}
+                className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none font-sans text-sm"
+              />
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowCheckout(false)}
+                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-3 rounded-xl font-semibold transition"
+              >
+                Скасувати
+              </button>
+              <button
+                onClick={sendOrder}
+                className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/20"
+              >
+                Зберегти і відправити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedImage && (
+        <div
+          onClick={() => setSelectedImage(null)}
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 cursor-zoom-out"
+        >
+          <img src={selectedImage} className="max-w-[90%] max-h-[90%] object-contain" alt="Zoomed view" />
+        </div>
+      )}
+    </div>
+  )
+}
