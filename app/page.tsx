@@ -22,7 +22,7 @@ type CartItem = Product & {
 
 const ADMIN_PASSWORD = 'admin2026'
 const GUEST_PASSWORD = 'optics2026'
-const DEFAULT_FALLBACK_RATE = 44.2 * 1.02 // На случай, если таблица не загрузится
+const DEFAULT_FALLBACK_RATE = 44.20 // Чистый базовый курс на случай сбоя сети
 
 const BRANDS = [
   'INVU',
@@ -48,26 +48,40 @@ export default function Page() {
   const [selectedBrand, setSelectedBrand] = useState('INVU')
   const [search, setSearch] = useState('')
   
-  // Курс теперь загружается из таблицы
+  // Состояние курса валют
   const [currentRate, setCurrentRate] = useState<number>(DEFAULT_FALLBACK_RATE)
   const [isRateLoading, setIsRateLoading] = useState(true)
   
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
 
   useEffect(() => {
-    // 1. Загрузка курса со второй вкладки "Course"
+    // 1. Загрузка курса из вкладки "Course"
     fetch('https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Course')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Не вдалося завантажити сторінку Course")
+        return res.json()
+      })
       .then((data) => {
-        if (data && data[0]) {
-          // Ищем значение в колонке "Курс"
-          const rateValue = data[0]['Курс']
+        console.log("Дані курсу з таблиці:", data)
+        
+        if (data && data.length > 0) {
+          const firstRow = data[0]
+          const rateValue = firstRow['Курс'] || firstRow['курс'] || firstRow['Rate'] || Object.values(firstRow)[0]
+          
           if (rateValue) {
-            const parsedRate = Number(String(rateValue).replace(',', '.'))
+            const cleanRate = String(rateValue).replace(/\s+/g, '').replace(',', '.')
+            const parsedRate = parseFloat(cleanRate)
+            
             if (!isNaN(parsedRate) && parsedRate > 0) {
               setCurrentRate(parsedRate)
+            } else {
+              console.error("Курс в таблиці не є числом:", rateValue)
             }
+          } else {
+            console.error("Не знайдено колонку 'Курс' в комірці A1.")
           }
+        } else {
+          console.error("Вкладка 'Course' порожня.")
         }
         setIsRateLoading(false)
       })
@@ -76,7 +90,7 @@ export default function Page() {
         setIsRateLoading(false)
       })
 
-    // 2. Загрузка товаров с первой вкладки "Sheet1"
+    // 2. Загрузка товаров из вкладки "Sheet1"
     fetch('https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1')
       .then((res) => res.json())
       .then((data) => {
@@ -143,12 +157,12 @@ export default function Page() {
 
   const renderStockStatus = (stock: number) => {
     if (stock === 0) {
-      return <span className="text-red-500 font-bold text-xs sm:text-sm">немає в наявності</span>
+      return <span className="text-red-600 font-bold text-xs">немає</span>
     }
     if (stock > 5) {
-      return <span className="text-green-600 font-semibold text-xs sm:text-sm">більше 5</span>
+      return <span className="text-emerald-700 font-bold text-xs">&gt; 5 шт</span>
     }
-    return <span className="text-orange-600 font-bold text-xs sm:text-sm">{stock} шт</span>
+    return <span className="text-amber-700 font-bold text-xs">{stock} шт</span>
   }
 
   const { totalItems, totalPriceUAH, totalPriceUSD } = useMemo(() => {
@@ -282,7 +296,7 @@ export default function Page() {
         <div className="absolute inset-0 bg-black/40 z-0"></div>
         <div className="bg-white/95 p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-200 text-black backdrop-blur-md relative z-10">
           <h1 className="text-2xl sm:text-3xl font-black mb-2 text-center text-gray-900 tracking-tight">ВХІД</h1>
-          <p className="text-xs sm:text-sm text-center text-gray-600 mb-6 font-medium">Оптика оптова платформа</p>
+          <p className="text-xs sm:text-sm text-center text-gray-700 mb-6 font-semibold">Оптика оптова платформа</p>
           
           <input
             type="password"
@@ -290,12 +304,12 @@ export default function Page() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAuth(password)}
-            className="border-2 border-gray-300 w-full p-3 rounded-xl mb-4 text-center text-base sm:text-lg font-bold text-black focus:border-blue-600 focus:outline-none transition bg-white"
+            className="border-2 border-gray-400 w-full p-3 rounded-xl mb-4 text-center text-base sm:text-lg font-bold text-black focus:border-blue-700 focus:outline-none transition bg-white"
             autoFocus
           />
           <button
             onClick={() => handleAuth(password)}
-            className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 active:scale-[0.98] transition shadow-lg shadow-blue-600/30 text-sm sm:text-base"
+            className="w-full bg-blue-700 text-white font-bold py-3 rounded-xl hover:bg-blue-800 active:scale-[0.98] transition shadow-lg shadow-blue-700/30 text-sm sm:text-base"
           >
             Увійти
           </button>
@@ -307,10 +321,10 @@ export default function Page() {
   const CartContent = () => (
     <>
       <div className="p-4 border-b flex justify-between items-center bg-white">
-        <h2 className="text-lg sm:text-xl font-bold">Замовлення</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Замовлення</h2>
         <button 
           onClick={() => setIsMobileCartOpen(false)} 
-          className="lg:hidden text-gray-500 font-bold text-sm px-2 py-1 bg-gray-100 rounded-lg"
+          className="lg:hidden text-gray-700 font-bold text-sm px-2.5 py-1 bg-gray-200 rounded-lg hover:bg-gray-300"
         >
           Згорнути
         </button>
@@ -318,34 +332,34 @@ export default function Page() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
         {cart.length === 0 ? (
-          <p className="text-gray-400 text-center mt-8 text-sm">Кошик порожній</p>
+          <p className="text-gray-500 text-center mt-8 text-sm font-medium">Кошик порожній</p>
         ) : (
           cart.map((p) => (
             <div key={p.id} className="flex gap-3 items-center border-b pb-3 last:border-0">
               <img 
                 src={p.image} 
-                className="w-10 h-10 object-contain bg-gray-50 border rounded-lg flex-shrink-0 cursor-pointer" 
+                className="w-10 h-10 object-contain bg-gray-50 border-2 border-gray-200 rounded-lg flex-shrink-0 cursor-pointer" 
                 alt="" 
                 onClick={() => setSelectedImage(p.image)}
               />
               
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-xs line-clamp-1 text-gray-900">{p.name}</div>
-                <div className="text-xs text-green-700 font-medium mt-0.5">
-                  {(p.price * p.quantity).toFixed(2)}$ <span className="text-gray-400 text-[10px]">({(p.price * currentRate * p.quantity).toFixed(2)} грн)</span>
+                <div className="font-bold text-xs line-clamp-1 text-gray-900">{p.name}</div>
+                <div className="text-xs text-emerald-800 font-bold mt-0.5">
+                  {(p.price * p.quantity).toFixed(2)}$ <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * p.quantity).toFixed(2)} грн)</span>
                 </div>
                 
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <button 
                     onClick={() => decreaseQty(p.id)}
-                    className="w-5 h-5 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold flex items-center justify-center"
+                    className="w-5 h-5 bg-gray-200 hover:bg-gray-300 rounded text-xs font-black text-gray-900 flex items-center justify-center border border-gray-300"
                   >
                     -
                   </button>
-                  <span className="text-xs font-bold w-6 text-center">{p.quantity}</span>
+                  <span className="text-xs font-black text-gray-950 w-6 text-center">{p.quantity}</span>
                   <button 
                     onClick={() => increaseQty(p.id)}
-                    className="w-5 h-5 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold flex items-center justify-center"
+                    className="w-5 h-5 bg-gray-200 hover:bg-gray-300 rounded text-xs font-black text-gray-900 flex items-center justify-center border border-gray-300"
                   >
                     +
                   </button>
@@ -356,23 +370,23 @@ export default function Page() {
         )}
       </div>
 
-      <div className="p-4 border-t bg-gray-50 sticky bottom-0">
-        <div className="flex justify-between text-xs sm:text-sm font-medium text-gray-600">
+      <div className="p-4 border-t bg-gray-100 sticky bottom-0">
+        <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-700">
           <span>Всього позицій:</span>
-          <span className="text-gray-900 font-bold">{totalItems}</span>
+          <span className="text-gray-950 font-black">{totalItems}</span>
         </div>
-        <div className="flex justify-between font-black text-sm sm:text-base mt-2 border-b pb-3 items-center">
-          <span>Загальна сума:</span>
-          <span className="text-green-700 text-right">
+        <div className="flex justify-between font-black text-sm sm:text-base mt-2 border-b border-gray-300 pb-3 items-center">
+          <span className="text-gray-900">Загальна сума:</span>
+          <span className="text-emerald-800 text-right">
             {totalPriceUSD.toFixed(2)}$ <br />
-            <span className="text-xs text-gray-500 font-normal">({totalPriceUAH.toFixed(2)} грн)</span>
+            <span className="text-xs text-gray-600 font-bold">({totalPriceUAH.toFixed(2)} грн)</span>
           </span>
         </div>
 
         <button
           disabled={cart.length === 0}
           onClick={() => setShowPreview(true)}
-          className="w-full mt-3 bg-gray-800 text-white py-2 rounded-xl font-medium text-xs sm:text-sm disabled:opacity-50 hover:bg-gray-900 transition"
+          className="w-full mt-3 bg-gray-900 text-white py-2 rounded-xl font-bold text-xs sm:text-sm disabled:opacity-50 hover:bg-black transition border border-black"
         >
           Переглянути замовлення
         </button>
@@ -380,7 +394,7 @@ export default function Page() {
         <button
           disabled={cart.length === 0}
           onClick={() => setShowCheckout(true)}
-          className="w-full mt-2 bg-green-600 text-white py-2.5 rounded-xl disabled:opacity-50 font-bold text-sm sm:text-base hover:bg-green-700 transition shadow-md"
+          className="w-full mt-2 bg-emerald-700 text-white py-2.5 rounded-xl disabled:opacity-50 font-black text-sm sm:text-base hover:bg-emerald-800 transition shadow-md"
         >
           Зробити замовлення
         </button>
@@ -390,8 +404,8 @@ export default function Page() {
 
   return (
     <div className="p-3 sm:p-6 bg-gray-100 min-h-screen text-black pb-24 lg:pb-6">
-      {/* ПАНЕЛЬ ФИЛЬТРОВ И КУРСА */}
-      <div className="sticky top-0 z-40 bg-white p-3 sm:p-4 rounded-2xl shadow mb-4 sm:mb-6 space-y-3">
+      {/* ВЕРХНЯЯ ПАНЕЛЬ С КУРСОМ */}
+      <div className="sticky top-0 z-40 bg-white p-3 sm:p-4 rounded-2xl shadow mb-4 sm:mb-6 space-y-3 border border-gray-200">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row gap-2.5 flex-1 w-full">
             <input
@@ -399,12 +413,12 @@ export default function Page() {
               placeholder="Глобальний пошук по всьому каталогу..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border p-2 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-500"
+              className="border-2 border-gray-300 p-2 rounded-lg w-full text-sm font-medium text-gray-900 focus:border-blue-600 focus:outline-none"
             />
             <select
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="border p-2 rounded-lg text-sm bg-white disabled:opacity-40 w-full sm:w-auto min-w-[180px]"
+              className="border-2 border-gray-300 p-2 rounded-lg text-sm bg-white font-bold text-gray-900 disabled:opacity-40 w-full sm:w-auto min-w-[180px]"
               disabled={search.trim() !== ''}
             >
               {BRANDS.map((b) => (
@@ -413,24 +427,23 @@ export default function Page() {
             </select>
           </div>
 
-          {/* Информационный блок курса для всех устройств */}
-          <div className="flex items-center justify-between lg:justify-end gap-3 bg-gray-50 p-2.5 rounded-xl border w-full lg:w-auto">
+          <div className="flex items-center justify-between lg:justify-end gap-3 bg-gray-50 p-2.5 rounded-xl border-2 border-gray-200 w-full lg:w-auto">
             <div className="flex flex-col items-start lg:items-end">
-              <span className="text-[11px] sm:text-xs font-bold text-gray-700 leading-tight">Поточний курс $:</span>
-              <span className="text-[9px] sm:text-[10px] text-gray-400 font-mono mt-0.5">
-                {isRateLoading ? "Оновлення..." : "Завантажено з Google Таблиці"}
+              <span className="text-[11px] sm:text-xs font-black text-gray-900 leading-tight">Поточний курс $:</span>
+              <span className="text-[9px] sm:text-[10px] text-gray-600 font-bold mt-0.5">
+                {isRateLoading ? "Оновлення..." : "Синхронізовано з Google"}
               </span>
             </div>
             
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-blue-600 text-sm sm:text-lg bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
+              <span className="font-black text-blue-800 text-sm sm:text-lg bg-blue-50 px-2.5 py-1 rounded-lg border-2 border-blue-200">
                 {currentRate.toFixed(2)} грн
               </span>
             </div>
           </div>
         </div>
         {search.trim() !== '' && (
-          <p className="text-[11px] text-blue-600 font-medium">⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
+          <p className="text-[11px] text-blue-700 font-bold">⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
         )}
       </div>
 
@@ -445,18 +458,19 @@ export default function Page() {
             return (
               <div 
                 key={p.id} 
-                className={`border rounded-2xl p-4 shadow bg-white relative flex flex-col justify-between transition-all duration-200 ${
+                className={`border-2 border-gray-200 rounded-2xl p-3.5 shadow-sm bg-white relative flex flex-col justify-between transition-all duration-200 hover:border-gray-300 ${
                   isOutOfStock ? 'opacity-60 bg-gray-50' : ''
                 }`}
               >
                 {p.promo && (
-                  <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded z-10">
+                  <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded z-10">
                     % АКЦІЯ
                   </div>
                 )}
 
+                {/* Изображение */}
                 <div>
-                  <div className="h-[160px] sm:h-[180px] flex items-center justify-center bg-gray-100 rounded-xl overflow-hidden">
+                  <div className="h-[150px] flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                     <img
                       src={p.image}
                       alt={p.name}
@@ -466,24 +480,32 @@ export default function Page() {
                       }`}
                     />
                   </div>
-                  <h2 className="font-bold mt-2.5 line-clamp-2 text-xs sm:text-sm text-gray-900">{p.name}</h2>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Бренд: {p.brand}</p>
-                  <p className="text-[11px] bg-gray-100 inline-block px-2 py-0.5 rounded font-mono mt-1 text-gray-700">
-                    Розміри: {p.sizes}
-                  </p>
+
+                  {/* Аккуратный текстовый блок повышенной контрастности */}
+                  <div className="mt-2.5 space-y-1">
+                    <h2 className="font-black line-clamp-1 text-xs sm:text-sm text-gray-950 tracking-tight">{p.name}</h2>
+                    
+                    <div className="flex items-center justify-between text-[11px] font-bold">
+                      <span className="text-gray-700">Бренд: <span className="text-gray-950 font-black">{p.brand}</span></span>
+                      <span className="font-mono text-gray-700">Розмір: <span className="text-gray-950 font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">{p.sizes}</span></span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-4">
-                  <p className="text-gray-500 text-[11px]">{p.price} $</p>
-                  <p className="text-green-700 font-black text-sm sm:text-base">
-                    {(p.price * currentRate).toFixed(2)} грн
-                  </p>
+                {/* Блок Цен и Кнопок */}
+                <div className="mt-3 pt-2 border-t border-gray-200">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-gray-600 text-xs font-bold">{p.price} $</span>
+                    <span className="text-emerald-800 font-black text-sm sm:text-base">
+                      {(p.price * currentRate).toFixed(2)} грн
+                    </span>
+                  </div>
 
-                  <div className="flex items-center gap-2 mt-2.5 border-t pt-2.5">
+                  <div className="flex items-center gap-2 mt-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
                     <button
                       disabled={isOutOfStock}
                       onClick={() => decreaseQty(p.id)}
-                      className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded-lg font-bold hover:bg-gray-300 transition disabled:opacity-30 flex items-center justify-center text-sm"
+                      className="w-7 h-7 bg-white rounded-lg font-black text-gray-900 hover:bg-gray-200 transition disabled:opacity-30 flex items-center justify-center text-sm border border-gray-300"
                     >
                       −
                     </button>
@@ -492,30 +514,30 @@ export default function Page() {
                       disabled={isOutOfStock}
                       value={isOutOfStock ? 0 : currentQty}
                       onChange={(e) => updateQuantity(p.id, parseInt(e.target.value) || 1)}
-                      className="w-10 text-center font-bold bg-transparent border-b text-sm focus:outline-none disabled:text-gray-400"
+                      className="w-8 text-center font-black bg-transparent text-xs text-gray-950 focus:outline-none disabled:text-gray-400"
                     />
                     <button
                       disabled={isOutOfStock}
                       onClick={() => increaseQty(p.id)}
-                      className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded-lg font-bold hover:bg-gray-300 transition disabled:opacity-30 flex items-center justify-center text-sm"
+                      className="w-7 h-7 bg-white rounded-lg font-black text-gray-900 hover:bg-gray-200 transition disabled:opacity-30 flex items-center justify-center text-sm border border-gray-300"
                     >
                       +
                     </button>
-                    <span className="text-[11px] text-gray-400 ml-auto whitespace-nowrap">
+                    <div className="ml-auto pr-1 font-bold text-gray-900">
                       {renderStockStatus(p.stock)}
-                    </span>
+                    </div>
                   </div>
 
                   <button
                     disabled={isOutOfStock}
                     onClick={() => toggleCart(p)}
-                    className={`mt-3 px-3 py-2 rounded-xl w-full text-white font-bold transition text-xs sm:text-sm ${
+                    className={`mt-2.5 px-3 py-2 rounded-xl w-full text-white font-black transition text-xs sm:text-sm shadow-sm ${
                       isOutOfStock 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : isInCart ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
+                        ? 'bg-gray-400 cursor-not-allowed shadow-none' 
+                        : isInCart ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'
                     }`}
                   >
-                    {isOutOfStock ? 'Немає в наявності' : isInCart ? 'Прибрати' : 'Обрати'}
+                    {isOutOfStock ? 'Немає в наявності' : isInCart ? 'Прибрати з кошика' : 'Обрати модель'}
                   </button>
                 </div>
               </div>
@@ -523,29 +545,29 @@ export default function Page() {
           })}
         </div>
 
-        {/* ДЕСКТОПНАЯ БОКОВАЯ КОРЗИНА */}
-        <div className="hidden lg:flex border rounded-2xl shadow bg-white sticky top-24 h-[85vh] flex-col justify-between overflow-hidden">
+        {/* БОКОВАЯ КОРЗИНА ДЛЯ ПК */}
+        <div className="hidden lg:flex border-2 border-gray-200 rounded-2xl shadow bg-white sticky top-24 h-[85vh] flex-col justify-between overflow-hidden">
           <CartContent />
         </div>
       </div>
 
-      {/* МОБИЛЬНАЯ НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ */}
+      {/* НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ ДЛЯ СМАРТФОНОВ */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl p-3 z-40 flex items-center justify-between gap-4 rounded-t-2xl">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl p-3 z-40 flex items-center justify-between gap-4 rounded-t-2xl">
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-gray-500">Обрано: <span className="text-gray-900">{totalItems} шт.</span></span>
-            <span className="text-green-700 font-black text-sm">{totalPriceUSD.toFixed(2)}$ <span className="text-xs font-normal text-gray-400">({totalPriceUAH.toFixed(2)} грн)</span></span>
+            <span className="text-xs font-bold text-gray-600">Обрано: <span className="text-gray-950 font-black">{totalItems} шт.</span></span>
+            <span className="text-emerald-800 font-black text-sm">{totalPriceUSD.toFixed(2)}$ <span className="text-xs font-bold text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span></span>
           </div>
           <button
             onClick={() => setIsMobileCartOpen(true)}
-            className="bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs active:scale-95 transition shadow-md"
+            className="bg-blue-700 text-white font-black px-5 py-2.5 rounded-xl text-xs active:scale-95 transition shadow-md"
           >
             Подивитись кошик
           </button>
         </div>
       )}
 
-      {/* МОБИЛЬНАЯ КОРЗИНА ВО ВЕСЬ ЭКРАН */}
+      {/* ВЫЕЗЖАЮЩАЯ МОБИЛЬНАЯ КОРЗИНА */}
       {isMobileCartOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/60 z-50 flex flex-col justify-end">
           <div className="bg-white rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -554,41 +576,40 @@ export default function Page() {
         </div>
       )}
 
-      {/* МОДАЛКА: ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР */}
+      {/* МОДАЛКА ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА БЕЗ КОЛОНКИ ЗАЛИШОК */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white w-full max-w-6xl h-[95vh] lg:h-[85vh] rounded-2xl p-4 sm:p-6 overflow-hidden flex flex-col shadow-2xl">
+          <div className="bg-white w-full max-w-6xl h-[95vh] lg:h-[85vh] rounded-2xl p-4 sm:p-6 overflow-hidden flex flex-col shadow-2xl border border-gray-300">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Попередній перегляд</h2>
+              <h2 className="text-lg sm:text-2xl font-black text-gray-950">Попередній перегляд замовлення</h2>
               <button
                 onClick={() => setShowPreview(false)}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-black text-xs sm:text-sm transition"
               >
                 Закрити
               </button>
             </div>
             
-            <div className="overflow-auto flex-1 border rounded-xl bg-white text-xs sm:text-sm">
-              <table className="w-full border-collapse text-left min-w-[700px]">
+            <div className="overflow-auto flex-1 border-2 border-gray-200 rounded-xl bg-white text-xs sm:text-sm">
+              <table className="w-full border-collapse text-left min-w-[650px]">
                 <thead>
-                  <tr className="bg-gray-100 font-bold text-gray-700">
-                    <th className="p-2 sm:p-3 border">Колекція</th>
-                    <th className="p-2 sm:p-3 border">Артикул</th>
-                    <th className="p-2 sm:p-3 border text-center">Фото</th>
-                    <th className="p-2 sm:p-3 border">Розміри</th>
-                    <th className="p-2 sm:p-3 border">Залишок</th>
-                    <th className="p-2 sm:p-3 border">Кількість</th>
-                    <th className="p-2 sm:p-3 border">Ціна</th>
-                    <th className="p-2 sm:p-3 border">Сума</th>
+                  <tr className="bg-gray-100 font-black text-gray-900 border-b-2 border-gray-200">
+                    <th className="p-2 sm:p-3 border-r">Колекція</th>
+                    <th className="p-2 sm:p-3 border-r">Артикул</th>
+                    <th className="p-2 sm:p-3 border-r text-center">Фото</th>
+                    <th className="p-2 sm:p-3 border-r">Розміри</th>
+                    <th className="p-2 sm:p-3 border-r">Кількість</th>
+                    <th className="p-2 sm:p-3 border-r">Ціна</th>
+                    <th className="p-2 sm:p-3 data-cell">Сума</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-gray-200">
                   {cart.map((p) => (
-                    <tr key={p.id} className="hover:bg-gray-50 transition">
-                      <td className="p-2 border text-gray-600 font-medium">{p.brand}</td>
-                      <td className="p-2 border font-bold text-gray-900">{p.name}</td>
-                      <td className="p-1 border text-center w-20 h-20">
-                        <div className="w-16 h-16 bg-gray-50 rounded-lg border overflow-hidden flex items-center justify-center mx-auto">
+                    <tr key={p.id} className="hover:bg-gray-50 transition text-gray-950 font-medium">
+                      <td className="p-2 border-r font-bold text-gray-800">{p.brand}</td>
+                      <td className="p-2 border-r font-black text-gray-950">{p.name}</td>
+                      <td className="p-1 border-r text-center w-20 h-20">
+                        <div className="w-16 h-16 bg-white rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center mx-auto">
                           <img 
                             src={p.image} 
                             className="max-w-full max-h-full object-contain" 
@@ -597,32 +618,31 @@ export default function Page() {
                           />
                         </div>
                       </td>
-                      <td className="p-2 border font-mono font-bold text-gray-700">{p.sizes}</td>
-                      <td className="p-2 border">{p.stock === 0 ? '—' : `${p.stock} шт`}</td>
-                      <td className="p-2 border">
+                      <td className="p-2 border-r font-mono font-black text-gray-900">{p.sizes}</td>
+                      <td className="p-2 border-r">
                         <div className="flex items-center gap-1.5">
                           <button 
                             onClick={() => decreaseQty(p.id)}
-                            className="w-6 h-6 bg-gray-200 text-xs font-bold rounded flex items-center justify-center"
+                            className="w-6 h-6 bg-gray-200 text-xs font-black rounded border border-gray-300 flex items-center justify-center"
                           >
                             -
                           </button>
-                          <span className="font-bold w-5 text-center">{p.quantity}</span>
+                          <span className="font-black text-gray-950 w-5 text-center">{p.quantity}</span>
                           <button 
                             onClick={() => increaseQty(p.id)}
-                            className="w-6 h-6 bg-gray-200 text-xs font-bold rounded flex items-center justify-center"
+                            className="w-6 h-6 bg-gray-200 text-xs font-black rounded border border-gray-300 flex items-center justify-center"
                           >
                             +
                           </button>
                         </div>
                       </td>
-                      <td className="p-2 border text-[11px]">
-                        <span className="font-bold text-gray-900">{p.price}$</span> <br />
-                        <span className="text-gray-400">({(p.price * currentRate).toFixed(1)} грн)</span>
+                      <td className="p-2 border-r text-[11px] font-bold">
+                        <span className="text-gray-950 font-black">{p.price}$</span> <br />
+                        <span className="text-gray-600">({(p.price * currentRate).toFixed(1)} грн)</span>
                       </td>
-                      <td className="p-2 border text-[11px] font-bold">
-                        <span className="text-blue-600">{(p.price * p.quantity).toFixed(2)}$</span> <br />
-                        <span className="text-green-700">({(p.price * currentRate * p.quantity).toFixed(1)} грн)</span>
+                      <td className="p-2 text-[11px] font-black">
+                        <span className="text-blue-800">{(p.price * p.quantity).toFixed(2)}$</span> <br />
+                        <span className="text-emerald-800">({(p.price * currentRate * p.quantity).toFixed(1)} грн)</span>
                       </td>
                     </tr>
                   ))}
@@ -630,23 +650,23 @@ export default function Page() {
               </table>
             </div>
 
-            <div className="mt-4 p-3 bg-gray-50 rounded-xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs sm:text-sm">
-              <span className="font-bold text-gray-600">Всього позицій у списку: <span className="text-gray-900 font-black">{totalItems}</span></span>
-              <span className="font-black text-sm sm:text-lg text-green-700">
-                Загальна сума: {totalPriceUSD.toFixed(2)}$ <span className="text-xs font-bold text-gray-400">({totalPriceUAH.toFixed(2)} грн)</span>
+            <div className="mt-4 p-3 bg-gray-100 rounded-xl border-2 border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs sm:text-sm">
+              <span className="font-black text-gray-800">Всього позицій у списку: <span className="text-gray-950 font-black">{totalItems}</span></span>
+              <span className="font-black text-sm sm:text-lg text-emerald-800">
+                Загальна сума: {totalPriceUSD.toFixed(2)}$ <span className="text-xs font-black text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span>
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* МОДАЛКА: ОФОРМЛЕНИЕ ЗАКАЗА */}
+      {/* МОДАЛКА ОФОРМЛЕНИЯ ЗАКАЗА */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white p-5 sm:p-8 rounded-2xl w-full max-w-[550px] max-h-[95vh] overflow-y-auto shadow-2xl text-sm">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900">Оформлення замовлення</h2>
+          <div className="bg-white p-5 sm:p-8 rounded-2xl w-full max-w-[550px] max-h-[95vh] overflow-y-auto shadow-2xl text-sm border border-gray-200">
+            <h2 className="text-xl sm:text-2xl font-black mb-4 text-gray-950">Оформлення замовлення</h2>
             
-            <div className="mb-4 p-3 bg-blue-50 border rounded-xl font-bold text-blue-900 flex justify-between text-xs sm:text-sm">
+            <div className="mb-4 p-3 bg-blue-50 border-2 border-blue-200 rounded-xl font-black text-blue-950 flex justify-between text-xs sm:text-sm">
               <span>Сума до сплати:</span>
               <span>{totalPriceUSD.toFixed(2)}$ ({totalPriceUAH.toFixed(2)} грн)</span>
             </div>
@@ -657,64 +677,64 @@ export default function Page() {
                 placeholder="ПІБ / ФОП *"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full border p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
               />
               <input
                 type="text"
                 placeholder="Телефон *"
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value)}
-                className="w-full border p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-955 focus:border-blue-600 focus:outline-none bg-white"
               />
               <input
                 type="text"
                 placeholder="Місто"
                 value={clientCity}
                 onChange={(e) => setClientCity(e.target.value)}
-                className="w-full border p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
               />
               <input
                 type="text"
                 placeholder="Адреса доставки"
                 value={clientAddress}
                 onChange={(e) => setClientAddress(e.target.value)}
-                className="w-full border p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
               />
               <input
                 type="text"
                 placeholder="Назва магазину"
                 value={clientStore}
                 onChange={(e) => setClientStore(e.target.value)}
-                className="w-full border p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
               />
               <input
                 type="text"
                 placeholder="Менеджер"
                 value={manager}
                 onChange={(e) => setManager(e.target.value)}
-                className="w-full border p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none bg-white"
+                className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
               />
               <textarea
                 placeholder="Ваші коментарі до замовлення..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
-                className="w-full border p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none font-sans text-xs sm:text-sm bg-white"
+                className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans text-xs sm:text-sm bg-white"
               />
             </div>
 
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => setShowCheckout(false)}
-                className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2.5 sm:py-3 rounded-xl font-semibold transition text-xs sm:text-sm"
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2.5 sm:py-3 rounded-xl font-bold transition text-xs sm:text-sm shadow-sm"
               >
                 Скасувати
               </button>
               <button
                 onClick={sendOrder}
-                className="flex-1 bg-green-600 text-white py-2.5 sm:py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-lg text-xs sm:text-sm"
+                className="flex-1 bg-emerald-700 text-white py-2.5 sm:py-3 rounded-xl font-black hover:bg-emerald-800 transition shadow-lg text-xs sm:text-sm"
               >
-                Відправити
+                Відправити замовлення
               </button>
             </div>
           </div>
