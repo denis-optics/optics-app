@@ -74,15 +74,62 @@ export async function POST(req: Request) {
     }
 
     // 3. Отправка заказа НА ПОЧТУ (Email) через Nodemailer
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.ukr.net', // Для адресов @ukr.net и @ukr.ua обычно используется smtp.ukr.net
-      port: 465,            
-      secure: true,
-      auth: {
-        user: 'opticsite@ukr.ua',     
-        pass: 'racQ1UMaUtCCBOso',  
-      },
-    })
+    // 🛠 НОВЫЙ ИСПРАВЛЕННЫЙ ВАРИАНТ
+const transporter = nodemailer.createTransport({
+  host: 'smtp.ukr.net', 
+  port: 587,            // Используем порт 587, он стабильнее всего работает на Vercel
+  secure: false,        // Для порта 587 всегда должно быть false
+  auth: {
+    // МЕНЯЕМ ТУТ: Пишем .net вместо .ua для успешного прохождения авторизации
+    user: 'opticsite@ukr.net', 
+    
+    // ВСТАВЛЯЕМ ТУТ: Новый 16-значный пароль для программ (без пробелов, если они там были)
+    pass: 'ВАШ_НОВЫЙ_ПРОГРАММНЫЙ_ПАРОЛЬ_ИЗ_16_СИМВОЛОВ',  
+  },
+  tls: {
+    // Эта настройка не дает серверу Vercel разорвать соединение из-за проверки сертификатов
+    rejectUnauthorized: false 
+  }
+})
+
+// HTML-текст для письма (оставляем без изменений)
+const emailHtml = `
+  <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 12px;">
+    <h2 style="color: #16a34a; margin-top: 0;">🛒 Нове замовлення на платформі</h2>
+    <hr/>
+    <p><b>Клієнт:</b> ${clientName}</p>
+    <p><b>Телефон:</b> ${clientPhone}</p>
+    <p><b>Місто:</b> ${clientCity}</p>
+    <p><b>Адреса доставки:</b> ${clientAddress}</p>
+    <p><b>Магазин:</b> ${clientStore}</p>
+    <p><b>Менеджер:</b> ${manager}</p>
+    <p><b>Коментар:</b> ${comment}</p>
+    <hr/>
+    <h3 style="color: #1e3a8a;">Загальна сума: ${totalUSD}$ (${totalUAH} грн)</h3>
+    <p style="font-size: 12px; color: #666;">Повний перелік замовлених моделей знаходиться у вкладеному файлі Excel.</p>
+  </div>
+`
+
+if (excelFile) {
+  const fileBuffer = Buffer.from(await excelFile.arrayBuffer())
+  
+  await transporter.sendMail({
+    // МЕНЯЕМ ТУТ: В поле "from" адрес должен ТОЧНО совпадать с auth.user (то есть тоже быть .net)
+    from: '"Оптика Платформа" <opticsite@ukr.net>', 
+    
+    // Куда отправлять заказ (оставляем вашу рабочую почту менеджера)
+    to: 'marinevich@ukr.com', 
+    
+    subject: `Нове замовлення: ${clientName}`,
+    html: emailHtml,
+    attachments: [
+      {
+        filename: excelFile.name,
+        content: fileBuffer,
+      }
+    ]
+  })
+}
 
     // HTML-текст для письма
     const emailHtml = `
