@@ -61,77 +61,25 @@ export async function POST(req: Request) {
       })
 
       if (!tgResponse.ok) {
-        const errLog = await tgResponse.json().catch(() => ({}))
-        console.error('Помилка отправки документа в Telegram:', errLog)
-        
-        // Резервный текстовый вариант, если файл заблокирован API
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: CHAT_ID, text: tgText, parse_mode: 'HTML' })
-        })
+        console.error('Помилка отправки документа в Telegram')
       }
     }
 
     // 3. Отправка заказа НА ПОЧТУ (Email) через Nodemailer
-    // 🛠 НОВЫЙ ИСПРАВЛЕННЫЙ ВАРИАНТ
-const transporter = nodemailer.createTransport({
-  host: 'smtp.ukr.net', 
-  port: 587,            // Используем порт 587, он стабильнее всего работает на Vercel
-  secure: false,        // Для порта 587 всегда должно быть false
-  auth: {
-    // МЕНЯЕМ ТУТ: Пишем .net вместо .ua для успешного прохождения авторизации
-    user: 'opticsite@ukr.net', 
-    
-    // ВСТАВЛЯЕМ ТУТ: Новый 16-значный пароль для программ (без пробелов, если они там были)
-    pass: 'ВАШ_НОВЫЙ_ПРОГРАММНЫЙ_ПАРОЛЬ_ИЗ_16_СИМВОЛОВ',  
-  },
-  tls: {
-    // Эта настройка не дает серверу Vercel разорвать соединение из-за проверки сертификатов
-    rejectUnauthorized: false 
-  }
-})
-
-// HTML-текст для письма (оставляем без изменений)
-const emailHtml = `
-  <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 12px;">
-    <h2 style="color: #16a34a; margin-top: 0;">🛒 Нове замовлення на платформі</h2>
-    <hr/>
-    <p><b>Клієнт:</b> ${clientName}</p>
-    <p><b>Телефон:</b> ${clientPhone}</p>
-    <p><b>Місто:</b> ${clientCity}</p>
-    <p><b>Адреса доставки:</b> ${clientAddress}</p>
-    <p><b>Магазин:</b> ${clientStore}</p>
-    <p><b>Менеджер:</b> ${manager}</p>
-    <p><b>Коментар:</b> ${comment}</p>
-    <hr/>
-    <h3 style="color: #1e3a8a;">Загальна сума: ${totalUSD}$ (${totalUAH} грн)</h3>
-    <p style="font-size: 12px; color: #666;">Повний перелік замовлених моделей знаходиться у вкладеному файлі Excel.</p>
-  </div>
-`
-
-if (excelFile) {
-  const fileBuffer = Buffer.from(await excelFile.arrayBuffer())
-  
-  await transporter.sendMail({
-    // МЕНЯЕМ ТУТ: В поле "from" адрес должен ТОЧНО совпадать с auth.user (то есть тоже быть .net)
-    from: '"Оптика Платформа" <opticsite@ukr.net>', 
-    
-    // Куда отправлять заказ (оставляем вашу рабочую почту менеджера)
-    to: 'marinevich@ukr.com', 
-    
-    subject: `Нове замовлення: ${clientName}`,
-    html: emailHtml,
-    attachments: [
-      {
-        filename: excelFile.name,
-        content: fileBuffer,
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.ukr.net', 
+      port: 587,            
+      secure: false,        
+      auth: {
+        user: 'opticsite@ukr.net', // Авторизация через системное зеркало .net
+        pass: 'pw9B85ZX9dN3sAJn',  // Убедитесь, что это актуальный 16-значный "Пароль для программ"
+      },
+      tls: {
+        rejectUnauthorized: false
       }
-    ]
-  })
-}
+    })
 
-    // HTML-текст для письма
+    // HTML-текст для письма (ЗДЕСЬ ОН ОБЪЯВЛЯЕТСЯ ОДИН ЕДИНСТВЕННЫЙ РАЗ)
     const emailHtml = `
       <div style="font-family: sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 12px;">
         <h2 style="color: #16a34a; margin-top: 0;">🛒 Нове замовлення на платформі</h2>
@@ -153,7 +101,7 @@ if (excelFile) {
       const fileBuffer = Buffer.from(await excelFile.arrayBuffer())
       
       await transporter.sendMail({
-        from: '"Оптика Платформа" <opticsite@ukr.ua>', // Почта отправителя должна совпадать с auth.user
+        from: '"Оптика Платформа" <opticsite@ukr.net>', 
         to: 'marinevich@ukr.com', 
         subject: `Нове замовлення: ${clientName}`,
         html: emailHtml,
