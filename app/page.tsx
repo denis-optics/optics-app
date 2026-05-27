@@ -1,7 +1,5 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
-import * as XLSX from 'xlsx'
-import { saveAs } from 'file-saver'
 
 type Product = {
   id: number
@@ -21,7 +19,7 @@ type CartItem = Product & {
 
 const ADMIN_PASSWORD = 'admin2026'
 const GUEST_PASSWORD = 'optics2026'
-const DEFAULT_FALLBACK_RATE = 44.20 // Чистый базовый курс на случай сбоя сети
+const DEFAULT_FALLBACK_RATE = 44.20 // Базовый курс на случай сбоя сети
 const BRANDS = [
   'INVU',
   'STYLE MARK',
@@ -58,7 +56,6 @@ export default function Page() {
         return res.json()
       })
       .then((data) => {
-        console.log("Дані курсу з таблиці:", data)
         if (data && data.length > 0) {
           const firstRow = data[0]
           const rateValue = firstRow['Курс'] || firstRow['курс'] || firstRow['Rate'] || Object.values(firstRow)[0]
@@ -68,12 +65,9 @@ export default function Page() {
             const parsedRate = parseFloat(cleanRate)
             if (!isNaN(parsedRate) && parsedRate > 0) {
               setCurrentRate(parsedRate)
-            } else {
-              console.error("Курс в таблиці не є числом:", rateValue)
             }
           }
 
-          // Чтение даты изменения из ячейки А3
           if (data[1]) {
             const possibleDate = Object.values(data[1])[0] || Object.values(data[0])[1];
             if (possibleDate && String(possibleDate).includes('.')) {
@@ -83,13 +77,11 @@ export default function Page() {
               setRateDate(String(alternativeDate || ''))
             }
           }
-        } else {
-          console.error("Вкладка 'Course' порожня.")
         }
         setIsRateLoading(false)
       })
       .catch((err) => {
-        console.error("Помилка завантаження курсу з таблиці:", err)
+        console.error("Помилка завантаження курсу:", err)
         setIsRateLoading(false)
       })
 
@@ -100,7 +92,6 @@ export default function Page() {
         const formatted: Product[] = data.map((item: any, index: number) => {
           const rawPrice = String(item['Цена'] || '0').replace(/\s+/g, '').replace(',', '.');
           const parsedPrice = parseFloat(rawPrice);
-          
           return {
             id: index,
             name: item['Название'] || 'Без назви',
@@ -109,7 +100,7 @@ export default function Page() {
             description: item['Описание'] || '',
             image: item['image'] && item['image'].trim() !== '' ? item['image'] : '',
             brand: item['Торговая марка'] || '',
-            promo: String(item['Rent'] || item['Акция'] || '').toLowerCase().includes('ак'),
+            promo: String(item['Акция'] || '').toLowerCase().includes('ак'),
             sizes: item['Размеры'] || '—'
           }
         })
@@ -195,79 +186,78 @@ export default function Page() {
     })
   }, [products, selectedBrand, search])
 
-  // Красивая генерация Excel с рамками, цветами и автошириной колонок
+  // Генерация Excel в формате XML-HTML: гарантирует автоширину колонок, цвета и рамки
   const generateExcelBlob = () => {
-    const rows: any[] = []
-    rows.push(['ПІБ клієнта', clientName])
-    rows.push(['Контактна інформація', clientPhone])
-    rows.push(['Місто', clientCity])
-    rows.push(['Адреса доставки', clientAddress])
-    rows.push(['Назва магазину', clientStore])
-    rows.push(['Менеджер', manager])
-    rows.push(['Коментар', comment])
-    rows.push(['Дата замовлення', new Date().toLocaleDateString()])
-    rows.push([])
-    rows.push(['Колекція', 'Артикул', 'Розміри', 'Кількість', 'Ціна $', 'Ціна грн', 'Сума $', 'Сума грн'])
+    const today = new Date().toLocaleDateString('uk-UA');
     
-    cart.forEach((p) => {
-      rows.push([
-        p.brand,
-        p.name,
-        p.sizes,
-        p.quantity,
-        p.price > 0 ? p.price.toFixed(2) : 'Ціну уточнюйте',
-        p.price > 0 ? (p.price * currentRate).toFixed(2) : '—',
-        p.price > 0 ? (p.price * p.quantity).toFixed(2) : '—',
-        p.price > 0 ? (p.price * currentRate * p.quantity).toFixed(2) : '—'
-      ])
-    })
-    rows.push([])
-    rows.push(['Разом', '', '', totalItems, '', '', totalPriceUSD.toFixed(2), totalPriceUAH.toFixed(2)])
+    const htmlContent = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="utf-8">
+        <style>
+          table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11pt; }
+          td { border: 1px solid #D3D3D3; padding: 6px 12px; white-space: nowrap; }
+          .label { font-weight: bold; background-color: #F2F2F2; width: 160px; }
+          .value { text-align: left; }
+          .header-row td { background-color: #1F4E78; color: #FFFFFF; font-weight: bold; text-align: center; border: 1px solid #1F4E78; }
+          .total-row td { background-color: #D9E1F2; font-weight: bold; border-top: 2px solid #1F4E78; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .price-missing { color: #B71C1C; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr><td class="label">ПІБ клієнта</td><td class="value" colspan="7">${clientName || '—'}</td></tr>
+          <tr><td class="label">Контактна інформація</td><td class="value" colspan="7" style="mso-number-format:'\\@';">${clientPhone || '—'}</td></tr>
+          <tr><td class="label">Місто</td><td class="value" colspan="7">${clientCity || '—'}</td></tr>
+          <tr><td class="label">Адреса доставки</td><td class="value" colspan="7">${clientAddress || '—'}</td></tr>
+          <tr><td class="label">Назва магазину</td><td class="value" colspan="7">${clientStore || '—'}</td></tr>
+          <tr><td class="label">Менеджер</td><td class="value" colspan="7">${manager || '—'}</td></tr>
+          <tr><td class="label">Коментар</td><td class="value" colspan="7">${comment || '—'}</td></tr>
+          <tr><td class="label">Дата замовлення</td><td class="value" colspan="7">${today}</td></tr>
+          <tr><td colspan="8" style="border:none; height: 15px;"></td></tr>
+          
+          <tr class="header-row">
+            <td>Колекція</td>
+            <td>Артикул</td>
+            <td>Розміри</td>
+            <td>Кількість</td>
+            <td>Ціна $</td>
+            <td>Ціна грн</td>
+            <td>Сума $</td>
+            <td>Сума грн</td>
+          </tr>
+          ${cart.map(p => {
+            const hasPrice = p.price > 0;
+            return `
+              <tr>
+                <td>${p.brand}</td>
+                <td style="mso-number-format:'\\@'; font-weight: bold;">${p.name}</td>
+                <td class="text-center">${p.sizes}</td>
+                <td class="text-center">${p.quantity}</td>
+                <td class="text-right">${hasPrice ? p.price.toFixed(2) : '<span class="price-missing">Ціну уточнюйте</span>'}</td>
+                <td class="text-right">${hasPrice ? (p.price * currentRate).toFixed(2) : '—'}</td>
+                <td class="text-right">${hasPrice ? (p.price * p.quantity).toFixed(2) : '—'}</td>
+                <td class="text-right" style="color: #1B5E20; font-weight: bold;">${hasPrice ? (p.price * currentRate * p.quantity).toFixed(2) : '—'}</td>
+              </tr>
+            `;
+          }).join('')}
+          
+          <tr class="total-row">
+            <td colspan="3">Разом</td>
+            <td class="text-center">${totalItems}</td>
+            <td></td>
+            <td></td>
+            <td class="text-right">${totalPriceUSD.toFixed(2)}</td>
+            <td class="text-right">${totalPriceUAH.toFixed(2)}</td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
 
-    const worksheet = XLSX.utils.aoa_to_sheet(rows)
-    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:H30')
-    
-    const colWidths = rows.map(row => row.map((val: any) => val ? String(val).length : 0))
-    const maxLengths = colWidths[0].map((_: any, colIdx: number) => {
-      return Math.max(...colWidths.map(row => row[colIdx] || 0)) + 4
-    })
-    worksheet['!cols'] = maxLengths.map((w: number) => ({ w: Math.max(w, 14) }))
-
-    for (let R = range.s.r; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const cell_address = { r: R, c: C }
-        const cell_ref = XLSX.utils.encode_cell(cell_address)
-        if (!worksheet[cell_ref]) continue
-
-        worksheet[cell_ref].s = {
-          border: {
-            top: { style: 'thin', color: { rgb: 'D3D3D3' } },
-            bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
-            left: { style: 'thin', color: { rgb: 'D3D3D3' } },
-            right: { style: 'thin', color: { rgb: 'D3D3D3' } }
-          },
-          font: { name: 'Arial', size: 10 }
-        }
-
-        if (R === 9) {
-          worksheet[cell_ref].s.fill = { fgColor: { rgb: '1F4E78' } }
-          worksheet[cell_ref].s.font = { name: 'Arial', size: 11, bold: true, color: { rgb: 'FFFFFF' } }
-        }
-        if (R === range.e.r) {
-          worksheet[cell_ref].s.fill = { fgColor: { rgb: 'D9E1F2' } }
-          worksheet[cell_ref].s.font = { name: 'Arial', size: 11, bold: true }
-        }
-        if (R < 8 && C === 0) {
-          worksheet[cell_ref].s.font = { name: 'Arial', size: 10, bold: true }
-          worksheet[cell_ref].s.fill = { fgColor: { rgb: 'F2F2F2' } }
-        }
-      }
-    }
-
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення')
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-    return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    return new Blob([htmlContent], { type: 'application/vnd.ms-excel' });
   }
 
   const handleAuth = (inputPass: string) => {
@@ -304,7 +294,7 @@ export default function Page() {
       formData.append('comment', comment)
       formData.append('totalUSD', totalPriceUSD.toFixed(2))
       formData.append('totalUAH', totalPriceUAH.toFixed(2))
-      formData.append('excelFile', excelBlob, `Order_${clientName.replace(/\s+/g, '_')}.xlsx`)
+      formData.append('excelFile', excelBlob, `Order_${clientName.replace(/\s+/g, '_')}.xls`)
 
       const res = await fetch('/api/send-order', {
         method: 'POST',
@@ -312,8 +302,16 @@ export default function Page() {
       })
       if (!res.ok) throw new Error()
       
-      saveAs(excelBlob, `zamovlennya_${clientName || 'client'}.xlsx`)
-      alert('Замовлення успешно відправлено на пошту та у Telegram!')
+      // Скачивание файла клиенту
+      const url = window.URL.createObjectURL(excelBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zamovlennya_${clientName.replace(/\s+/g, '_')}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      alert('Замовлення успішно відправлено на пошту та у Telegram!')
 
       setCart([])
       setQuantities({})
@@ -328,37 +326,6 @@ export default function Page() {
     } catch (err) {
       alert('Помилка відправлення через API')
     }
-  }
-
-  if (!authorized) {
-    return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center p-4 relative"
-        style={{ backgroundImage: `url(${START_BACKGROUND_URL})` }}
-      >
-        <div className="absolute inset-0 bg-black/40 z-0"></div>
-        <div className="bg-white/95 p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-200 text-black backdrop-blur-md relative z-10">
-          <h1 className="text-2xl sm:text-3xl font-black mb-2 text-center text-gray-900 tracking-tight">ВХІД</h1>
-          <p className="text-xs sm:text-sm text-center text-gray-700 mb-6 font-semibold">Оптика оптова платформа</p>
-
-          <input
-            type="password"
-            placeholder="Введіть пароль"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAuth(password)}
-            className="border-2 border-gray-400 w-full p-3 rounded-xl mb-4 text-center text-base sm:text-lg font-bold text-black focus:border-blue-700 focus:outline-none transition bg-white"
-            autoFocus
-          />
-          <button
-            onClick={() => handleAuth(password)}
-            className="w-full bg-blue-700 text-white font-bold py-3 rounded-xl hover:bg-blue-800 active:scale-[0.98] transition shadow-lg shadow-blue-700/30 text-sm sm:text-base"
-          >
-            Увійти
-          </button>
-        </div>
-      </div>
-    )
   }
 
   const CartContent = () => (
@@ -381,26 +348,17 @@ export default function Page() {
               {p.image ? (
                 <img
                   src={p.image}
-                  className="w-10 h-10 object-contain bg-gray-50 border border-gray-200 rounded-lg flex-shrink-0 cursor-pointer"
+                  className="w-10 h-10 object-contain bg-gray-50 border-2 border-gray-200 rounded-lg flex-shrink-0 cursor-pointer"
                   alt=""
                   onClick={() => setSelectedImage(p.image)}
                 />
               ) : (
-                <div className="w-10 h-10 border border-dashed border-blue-400 bg-blue-50 rounded-lg flex flex-col items-center justify-center p-0.5 text-center leading-none flex-shrink-0">
-                  <span className="text-[10px]">🎨</span>
-                  <span className="text-[5px] font-black uppercase text-blue-700">немає</span>
-                </div>
+                <div className="w-10 h-10 bg-gray-100 border border-gray-300 rounded-lg flex-shrink-0"></div>
               )}
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-xs line-clamp-1 text-gray-900">{p.name}</div>
                 <div className="text-xs text-emerald-800 font-bold mt-0.5">
-                  {p.price > 0 ? (
-                    <>
-                      {(p.price * p.quantity).toFixed(2)}$ <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * p.quantity).toFixed(2)} грн)</span>
-                    </>
-                  ) : (
-                    <span className="text-amber-700 text-[10px] font-black">ціну уточнюйте</span>
-                  )}
+                  {p.price > 0 ? `${(p.price * p.quantity).toFixed(2)}$` : 'Ціну уточнюйте'} {p.price > 0 && <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * p.quantity).toFixed(2)} грн)</span>}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <button
@@ -454,7 +412,7 @@ export default function Page() {
 
   return (
     <div className="p-3 sm:p-6 bg-gray-100 min-h-screen text-black pb-24 lg:pb-6">
-      {/* ВЕРХНЯЯ ПАНЕЛЬ С КУРСОМ */}
+      {/* ВЕРХНЯЯ ПАНЕЛЬ */}
       <div className="sticky top-0 z-40 bg-white p-3 sm:p-4 rounded-2xl shadow mb-4 sm:mb-6 space-y-3 border border-gray-200">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row gap-2.5 flex-1 w-full">
@@ -484,7 +442,6 @@ export default function Page() {
                 {isRateLoading ? "Оновлення..." : `Зміна: ${rateDate || 'не вказана'}`}
               </span>
             </div>
-
             <div className="flex items-center gap-1.5">
               <span className="font-black text-blue-800 text-sm sm:text-lg bg-blue-50 px-2.5 py-1 rounded-lg border-2 border-blue-200">
                 {currentRate.toFixed(2)} грн
@@ -493,7 +450,7 @@ export default function Page() {
           </div>
         </div>
         {search.trim() !== '' && (
-          <p className="text-[11px] text-blue-700 font-bold"> ⚠️  Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
+          <p className="text-[11px] text-blue-700 font-bold"> ⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
         )}
       </div>
 
@@ -517,9 +474,8 @@ export default function Page() {
                   </div>
                 )}
                 
-                {/* Изображение чуть-чуть больше */}
                 <div>
-                  <div className="h-[175px] flex items-center justify-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm p-1">
+                  <div className="h-[175px] flex items-center justify-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                     {p.image ? (
                       <img
                         src={p.image}
@@ -530,14 +486,10 @@ export default function Page() {
                         }`}
                       />
                     ) : (
-                      <div className="w-full h-full border border-dashed border-blue-300 bg-blue-50/50 rounded-lg flex flex-col items-center justify-center p-2 text-center">
-                        <span className="text-2xl select-none">🎨👓</span>
-                        <span className="text-[10px] font-black text-blue-800 tracking-tight uppercase mt-1">ще малюємо фото</span>
-                      </div>
+                      <div className="w-full h-full bg-white rounded-xl"></div>
                     )}
                   </div>
                   
-                  {/* Крупная плотная контрастная информация */}
                   <div className="mt-3.5 space-y-1.5">
                     <h2 className="font-black line-clamp-1 text-sm sm:text-base text-gray-950 tracking-tight">{p.name}</h2>
                     <div className="flex flex-col gap-1 text-xs sm:text-sm font-bold">
@@ -547,7 +499,6 @@ export default function Page() {
                   </div>
                 </div>
 
-                {/* Блок Цен (Рядом в одну строчку) и Кнопок количества */}
                 <div className="mt-4 pt-3 border-t-2 border-gray-300">
                   <div className="flex items-center justify-between gap-1">
                     {p.price > 0 ? (
@@ -558,11 +509,10 @@ export default function Page() {
                         </span>
                       </>
                     ) : (
-                      <span className="text-amber-700 font-black text-sm sm:text-base bg-amber-50 px-3 py-1 rounded border border-amber-300 w-full text-center">ціну уточнюйте</span>
+                      <span className="text-amber-700 text-sm font-black uppercase tracking-tight">ціну уточнюйте</span>
                     )}
                   </div>
                   
-                  {/* Кнопки и цифры больше как раньше */}
                   <div className="flex items-center gap-2 mt-3 bg-white p-2 rounded-xl border-2 border-gray-300">
                     <button
                       disabled={isOutOfStock}
@@ -613,7 +563,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ ДЛЯ СМАРТФОНОВ */}
+      {/* НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ ДЛЯ МОБИЛЬНЫХ */}
       {cart.length > 0 && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl p-3 z-40 flex items-center justify-between gap-4 rounded-t-2xl">
           <div className="flex flex-col">
@@ -629,7 +579,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* МОДАЛЬНОЕ ОКНО КОРЗИНЫ ДЛЯ СМАРТФОНОВ */}
+      {/* МОДАЛЬНЫЙ КОШИК НА МОБИЛЬНЫХ */}
       {isMobileCartOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/50 z-50 flex flex-col justify-end">
           <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -638,17 +588,17 @@ export default function Page() {
         </div>
       )}
 
-      {/* МОДАЛКА ЗУМА ИЗОБРАЖЕНИЙ */}
+      {/* ЕДИНАЯ МОДАЛКА УВЕЛИЧЕНИЯ ИЗОБРАЖЕНИЙ (ИЗ КАТАЛОГА И ИЗ ПРЕДПРОСМОТРА) */}
       {selectedImage && (
         <div
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-pointer backdrop-blur-sm"
+          className="fixed inset-0 bg-black/85 z-[60] flex items-center justify-center p-4 cursor-pointer backdrop-blur-md"
           onClick={() => setSelectedImage(null)}
         >
-          <div className="relative max-w-4xl max-h-full bg-white p-2 rounded-2xl shadow-2xl">
-            <img src={selectedImage} className="max-w-full max-h-[85vh] object-contain rounded-xl" alt="Zoomed" />
+          <div className="relative max-w-4xl max-h-full bg-white p-2 rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <img src={selectedImage} className="max-w-full max-h-[82vh] object-contain rounded-xl" alt="Zoomed Product" />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 bg-black/60 text-white font-black w-8 h-8 rounded-full flex items-center justify-center hover:bg-black text-lg"
+              className="absolute top-4 right-4 bg-black/70 text-white font-black w-9 h-9 rounded-full flex items-center justify-center hover:bg-black transition text-xl shadow-md"
             >
               ×
             </button>
@@ -669,7 +619,7 @@ export default function Page() {
                   placeholder="Введіть повне ім'я"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
                 />
               </div>
               <div>
@@ -679,7 +629,7 @@ export default function Page() {
                   placeholder="+380"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -690,7 +640,7 @@ export default function Page() {
                     placeholder="Київ"
                     value={clientCity}
                     onChange={(e) => setClientCity(e.target.value)}
-                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
+                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
                   />
                 </div>
                 <div>
@@ -700,7 +650,7 @@ export default function Page() {
                     placeholder="Оптика+"
                     value={clientStore}
                     onChange={(e) => setClientStore(e.target.value)}
-                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
+                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
                   />
                 </div>
               </div>
@@ -711,7 +661,7 @@ export default function Page() {
                   placeholder="№ відділення або адреса"
                   value={clientAddress}
                   onChange={(e) => setClientAddress(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
                 />
               </div>
               <div>
@@ -721,7 +671,7 @@ export default function Page() {
                   placeholder="Ім'я менеджера"
                   value={manager}
                   onChange={(e) => setManager(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
                 />
               </div>
               <div>
@@ -731,7 +681,7 @@ export default function Page() {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={3}
-                  className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none text-xs sm:text-sm bg-white"
+                  className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans text-xs sm:text-sm bg-white"
                 />
               </div>
             </div>
@@ -753,7 +703,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА (ОБНОВЛЕННОЕ) */}
+      {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА С ВОЗМОЖНОСТЬЮ УВЕЛИЧЕНИЯ ФОТО */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-2xl rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
@@ -764,7 +714,7 @@ export default function Page() {
                 <thead>
                   <tr className="bg-gray-100 border-b-2 border-gray-300 font-black">
                     <th className="p-2">Фото</th>
-                    <th className="p-2">Модель</th>
+                    <th className="p-2">Модель (Артикул)</th>
                     <th className="p-2 text-center">Кіл-ть</th>
                     <th className="p-2 text-right">Ціна $</th>
                     <th className="p-2 text-right">Сума грн</th>
@@ -774,32 +724,44 @@ export default function Page() {
                   {cart.map((item) => {
                     const hasPrice = item.price > 0;
                     const itemTotalUAH = item.price * currentRate * item.quantity;
+                    const placeholderImg = "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=300&auto=format&fit=crop&q=60";
 
                     return (
                       <tr key={item.id} className="border-b last:border-0 font-medium items-center">
-                        {/* Картинка / Мем-заглушка в превью */}
+                        {/* Маленькое фото / Заглушка с возможностью клика для увеличения */}
                         <td className="p-2 w-16 h-16 flex-shrink-0">
                           {item.image ? (
                             <img 
                               src={item.image} 
-                              className="w-12 h-12 object-contain bg-gray-50 border border-gray-300 rounded-md" 
-                              alt="" 
+                              className="w-12 h-12 object-contain bg-gray-50 border border-gray-300 rounded-md cursor-pointer hover:opacity-80 active:scale-95 transition duration-150" 
+                              alt="Клікніть для збільшення" 
+                              onClick={() => setSelectedImage(item.image)}
                             />
                           ) : (
-                            <div className="w-12 h-12 border border-dashed border-blue-400 bg-blue-50 rounded-md flex flex-col items-center justify-center text-center p-0.5 leading-none overflow-hidden">
-                              <span className="text-[14px] block select-none">🎨👓</span>
-                              <span className="text-[7px] font-black text-blue-700 tracking-tighter uppercase mt-0.5">ще малюємо фото</span>
+                            <div 
+                              className="w-12 h-12 border border-gray-300 bg-gray-50 rounded-md flex flex-col items-center justify-center text-center relative overflow-hidden group cursor-pointer"
+                              onClick={() => setSelectedImage(placeholderImg)}
+                              title="Клікніть для перегляду"
+                            >
+                              <img 
+                                src={placeholderImg} 
+                                className="w-full h-full object-cover absolute inset-0 opacity-30 group-hover:scale-105 transition duration-200" 
+                                alt="" 
+                              />
+                              <span className="relative z-10 text-[7px] font-black text-gray-900 bg-white/80 px-0.5 rounded shadow-xs uppercase tracking-tighter leading-none text-center select-none">
+                                ще малюємо<br/>фото
+                              </span>
                             </div>
                           )}
                         </td>
 
-                        {/* Название */}
+                        {/* Описание товара (Артикул) */}
                         <td className="p-2">
                           <div className="font-bold text-gray-950">{item.name}</div>
-                          <div className="text-[10px] text-gray-500 font-mono">Розмір: {item.sizes}</div>
+                          <div className="text-[10px] text-gray-500 font-mono">Бренд: {item.brand} | Розмір: {item.sizes}</div>
                         </td>
 
-                        {/* Кнопки управления количеством в превью */}
+                        {/* Кнопки количества прямо в таблице превью */}
                         <td className="p-2 text-center">
                           <div className="flex items-center justify-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-300 inline-flex">
                             <button
@@ -820,12 +782,12 @@ export default function Page() {
                           </div>
                         </td>
 
-                        {/* Вывод цены */}
+                        {/* Цена $ */}
                         <td className="p-2 text-right font-bold">
                           {hasPrice ? `(${item.price.toFixed(2)} $)` : <span className="text-amber-700 text-[11px] font-black">ціну уточнюйте</span>}
                         </td>
 
-                        {/* Вывод суммы */}
+                        {/* Сумма грн */}
                         <td className="p-2 text-right text-emerald-800 font-black">
                           {hasPrice ? `${itemTotalUAH.toFixed(2)} грн` : <span className="text-amber-700 text-[11px] font-black">—</span>}
                         </td>
@@ -836,13 +798,14 @@ export default function Page() {
               </table>
             </div>
 
+            {/* Итоговая строка */}
             <div className="mt-4 pt-3 border-t-2 border-gray-300 flex justify-between items-center font-black text-sm sm:text-base">
               <span>Разом позицій: {totalItems}</span>
               <span className="text-emerald-800 text-right">
                 {totalPriceUSD.toFixed(2)}$ <span className="text-xs text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span>
               </span>
             </div>
-            
+
             <div className="mt-5">
               <button
                 onClick={() => setShowPreview(false)}
