@@ -44,7 +44,7 @@ export default function Page() {
 
   useEffect(() => {
     // 1. Загрузка курса и даты изменения из вкладки "Course"
-    fetch('https://opensheet.elk.sh/1m457AyzqcLK5rXJ1VwKvsPf02v_0TlHG/Course')
+    fetch('https://opensheet.elk.sh/1gFtRzDVggVbSuzkZtiCs8KAqDV2u-5oCBWxDltFi_7g/Course')
       .then((res) => {
         if (!res.ok) throw new Error("Не вдалося завантажити сторінку Course")
         return res.json()
@@ -80,7 +80,7 @@ export default function Page() {
       })
 
     // 2. Загрузка товаров из вкладки "Sheet1"
-    fetch('https://opensheet.elk.sh/1m457AyzqcLK5rXJ1VwKvsPf02v_0TlHG/Sheet1')
+    fetch('https://opensheet.elk.sh/1gFtRzDVggVbSuzkZtiCs8KAqDV2u-5oCBWxDltFi_7g/Sheet1')
       .then((res) => res.json())
       .then((data) => {
         const formatted: Product[] = data.map((item: any, index: number) => {
