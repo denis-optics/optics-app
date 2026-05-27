@@ -60,7 +60,6 @@ export default function Page() {
       .then((data) => {
         console.log("Дані курсу з таблиці:", data)
         if (data && data.length > 0) {
-          // Чтение курса (строка 1 в opensheet)
           const firstRow = data[0]
           const rateValue = firstRow['Курс'] || firstRow['курс'] || firstRow['Rate'] || Object.values(firstRow)[0]
 
@@ -74,10 +73,8 @@ export default function Page() {
             }
           }
 
-          // Чтение даты изменения из ячейки А3 (в opensheet это будет третья строка данных, индекс 1 или 2 в зависимости от структуры)
-          // Opensheet превращает строки в объекты. Ищем значение в объектах ниже.
+          // Чтение даты изменения из ячейки А3
           if (data[1]) {
-            // Проверяем наличие ключей во второй или третьей строчке для извлечения даты
             const possibleDate = Object.values(data[1])[0] || Object.values(data[0])[1];
             if (possibleDate && String(possibleDate).includes('.')) {
               setRateDate(String(possibleDate))
@@ -100,17 +97,22 @@ export default function Page() {
     fetch('https://opensheet.elk.sh/1gdR4vklSLgR1z_LmdN7IzOxzgxvEUc4DTdWq0KQReQc/Sheet1')
       .then((res) => res.json())
       .then((data) => {
-        const formatted: Product[] = data.map((item: any, index: number) => ({
-          id: index,
-          name: item['Название'] || 'Без назви',
-          price: Number(String(item['Цена'] || '0').replace(',', '.')),
-          stock: Number(item['Остаток'] || 0),
-          description: item['Описание'] || '',
-          image: item['image'] || '/images/no-image.jpg',
-          brand: item['Торговая марка'] || '',
-          promo: String(item['Акция'] || '').toLowerCase().includes('ак'),
-          sizes: item['Размеры'] || '—'
-        }))
+        const formatted: Product[] = data.map((item: any, index: number) => {
+          const rawPrice = String(item['Цена'] || '0').replace(/\s+/g, '').replace(',', '.');
+          const parsedPrice = parseFloat(rawPrice);
+          
+          return {
+            id: index,
+            name: item['Название'] || 'Без назви',
+            price: isNaN(parsedPrice) || parsedPrice <= 0 ? 0 : parsedPrice,
+            stock: Number(item['Остаток'] || 0),
+            description: item['Описание'] || '',
+            image: item['image'] && item['image'].trim() !== '' ? item['image'] : '',
+            brand: item['Торговая марка'] || '',
+            promo: String(item['Rent'] || item['Акция'] || '').toLowerCase().includes('ак'),
+            sizes: item['Размеры'] || '—'
+          }
+        })
         setProducts(formatted)
       })
       .catch((err) => console.error("Помилка завантаження даних товарів:", err))
@@ -213,35 +215,30 @@ export default function Page() {
         p.name,
         p.sizes,
         p.quantity,
-        p.price.toFixed(2),
-        (p.price * currentRate).toFixed(2),
-        (p.price * p.quantity).toFixed(2),
-        (p.price * currentRate * p.quantity).toFixed(2)
+        p.price > 0 ? p.price.toFixed(2) : 'Ціну уточнюйте',
+        p.price > 0 ? (p.price * currentRate).toFixed(2) : '—',
+        p.price > 0 ? (p.price * p.quantity).toFixed(2) : '—',
+        p.price > 0 ? (p.price * currentRate * p.quantity).toFixed(2) : '—'
       ])
     })
     rows.push([])
     rows.push(['Разом', '', '', totalItems, '', '', totalPriceUSD.toFixed(2), totalPriceUAH.toFixed(2)])
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows)
-
-    // Стилизация: добавляем рамки, шрифты и цвета ячеек
     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:H30')
     
-    // Подготовка структуры автоширины колонок
     const colWidths = rows.map(row => row.map((val: any) => val ? String(val).length : 0))
     const maxLengths = colWidths[0].map((_: any, colIdx: number) => {
-      return Math.max(...colWidths.map(row => row[colIdx] || 0)) + 4 // +4 символа запаса
+      return Math.max(...colWidths.map(row => row[colIdx] || 0)) + 4
     })
-    worksheet['!cols'] = maxLengths.map((w: number) => ({ w: Math.max(w, 12) })) // минимальная ширина 12
+    worksheet['!cols'] = maxLengths.map((w: number) => ({ w: Math.max(w, 14) }))
 
-    // Проход по всем ячейкам для наложения стилей границ и заливки
     for (let R = range.s.r; R <= range.e.r; ++R) {
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const cell_address = { r: R, c: C }
         const cell_ref = XLSX.utils.encode_cell(cell_address)
         if (!worksheet[cell_ref]) continue
 
-        // Инициализируем объект стилей, если он поддерживается вашей XLSX сборкой (xlsx-style)
         worksheet[cell_ref].s = {
           border: {
             top: { style: 'thin', color: { rgb: 'D3D3D3' } },
@@ -252,17 +249,14 @@ export default function Page() {
           font: { name: 'Arial', size: 10 }
         }
 
-        // Красивое оформление шапки таблицы товаров (Строка 10 в Excel)
         if (R === 9) {
-          worksheet[cell_ref].s.fill = { fgColor: { rgb: '1F4E78' } } // Красивый темно-синий
+          worksheet[cell_ref].s.fill = { fgColor: { rgb: '1F4E78' } }
           worksheet[cell_ref].s.font = { name: 'Arial', size: 11, bold: true, color: { rgb: 'FFFFFF' } }
         }
-        // Оформление строки "Разом"
         if (R === range.e.r) {
-          worksheet[cell_ref].s.fill = { fgColor: { rgb: 'D9E1F2' } } // Светло-голубой тон
+          worksheet[cell_ref].s.fill = { fgColor: { rgb: 'D9E1F2' } }
           worksheet[cell_ref].s.font = { name: 'Arial', size: 11, bold: true }
         }
-        // Оформление блока данных клиента (Строки 1-8)
         if (R < 8 && C === 0) {
           worksheet[cell_ref].s.font = { name: 'Arial', size: 10, bold: true }
           worksheet[cell_ref].s.fill = { fgColor: { rgb: 'F2F2F2' } }
@@ -294,7 +288,6 @@ export default function Page() {
       return
     }
 
-    // Изменение: Сначала спрашиваем подтверждение у пользователя
     const isConfirmed = confirm('Ви впевнені, що хочете сформувати та надіслати замовлення?')
     if (!isConfirmed) return
 
@@ -320,7 +313,7 @@ export default function Page() {
       if (!res.ok) throw new Error()
       
       saveAs(excelBlob, `zamovlennya_${clientName || 'client'}.xlsx`)
-      alert('Замовлення успішно відправлено на пошту та у Telegram!')
+      alert('Замовлення успешно відправлено на пошту та у Telegram!')
 
       setCart([])
       setQuantities({})
@@ -385,16 +378,29 @@ export default function Page() {
         ) : (
           cart.map((p) => (
             <div key={p.id} className="flex gap-3 items-center border-b pb-3 last:border-0">
-              <img
-                src={p.image}
-                className="w-10 h-10 object-contain bg-gray-50 border-2 border-gray-200 rounded-lg flex-shrink-0 cursor-pointer"
-                alt=""
-                onClick={() => setSelectedImage(p.image)}
-              />
+              {p.image ? (
+                <img
+                  src={p.image}
+                  className="w-10 h-10 object-contain bg-gray-50 border border-gray-200 rounded-lg flex-shrink-0 cursor-pointer"
+                  alt=""
+                  onClick={() => setSelectedImage(p.image)}
+                />
+              ) : (
+                <div className="w-10 h-10 border border-dashed border-blue-400 bg-blue-50 rounded-lg flex flex-col items-center justify-center p-0.5 text-center leading-none flex-shrink-0">
+                  <span className="text-[10px]">🎨</span>
+                  <span className="text-[5px] font-black uppercase text-blue-700">немає</span>
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-xs line-clamp-1 text-gray-900">{p.name}</div>
                 <div className="text-xs text-emerald-800 font-bold mt-0.5">
-                  {(p.price * p.quantity).toFixed(2)}$ <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * p.quantity).toFixed(2)} грн)</span>
+                  {p.price > 0 ? (
+                    <>
+                      {(p.price * p.quantity).toFixed(2)}$ <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * p.quantity).toFixed(2)} грн)</span>
+                    </>
+                  ) : (
+                    <span className="text-amber-700 text-[10px] font-black">ціну уточнюйте</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <button
@@ -511,20 +517,27 @@ export default function Page() {
                   </div>
                 )}
                 
-                {/* Изображение увеличено до h-[175px] */}
+                {/* Изображение чуть-чуть больше */}
                 <div>
-                  <div className="h-[175px] flex items-center justify-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      onClick={() => setSelectedImage(p.image)}
-                      className={`max-h-full object-contain cursor-pointer hover:scale-105 transition duration-200 ${
-                        isOutOfStock ? 'grayscale' : ''
-                      }`}
-                    />
+                  <div className="h-[175px] flex items-center justify-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm p-1">
+                    {p.image ? (
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        onClick={() => setSelectedImage(p.image)}
+                        className={`max-h-full object-contain cursor-pointer hover:scale-105 transition duration-200 ${
+                          isOutOfStock ? 'grayscale' : ''
+                        }`}
+                      />
+                    ) : (
+                      <div className="w-full h-full border border-dashed border-blue-300 bg-blue-50/50 rounded-lg flex flex-col items-center justify-center p-2 text-center">
+                        <span className="text-2xl select-none">🎨👓</span>
+                        <span className="text-[10px] font-black text-blue-800 tracking-tight uppercase mt-1">ще малюємо фото</span>
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Крупный текстовый блок повышенной контрастности */}
+                  {/* Крупная плотная контрастная информация */}
                   <div className="mt-3.5 space-y-1.5">
                     <h2 className="font-black line-clamp-1 text-sm sm:text-base text-gray-950 tracking-tight">{p.name}</h2>
                     <div className="flex flex-col gap-1 text-xs sm:text-sm font-bold">
@@ -534,16 +547,22 @@ export default function Page() {
                   </div>
                 </div>
 
-                {/* Блок Цен и Кнопок (Крупнее, в одну строчку) */}
+                {/* Блок Цен (Рядом в одну строчку) и Кнопок количества */}
                 <div className="mt-4 pt-3 border-t-2 border-gray-300">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-gray-950 font-black text-sm sm:text-base bg-gray-200 px-2 py-0.5 rounded border border-gray-300">({p.price} $)</span>
-                    <span className="text-emerald-800 font-black text-base sm:text-lg">
-                      {(p.price * currentRate).toFixed(2)} грн
-                    </span>
+                    {p.price > 0 ? (
+                      <>
+                        <span className="text-gray-950 font-black text-sm sm:text-base bg-gray-200 px-2 py-0.5 rounded border border-gray-300">({p.price} $)</span>
+                        <span className="text-emerald-800 font-black text-base sm:text-lg">
+                          {(p.price * currentRate).toFixed(2)} грн
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-amber-700 font-black text-sm sm:text-base bg-amber-50 px-3 py-1 rounded border border-amber-300 w-full text-center">ціну уточнюйте</span>
+                    )}
                   </div>
                   
-                  {/* Кнопки регулировки увеличены до w-10 h-10, шрифт крупнее */}
+                  {/* Кнопки и цифры больше как раньше */}
                   <div className="flex items-center gap-2 mt-3 bg-white p-2 rounded-xl border-2 border-gray-300">
                     <button
                       disabled={isOutOfStock}
@@ -610,7 +629,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* МОДАЛЬНОЕ ОКНО ДЛЯ СМАРТФОНОВ */}
+      {/* МОДАЛЬНОЕ ОКНО КОРЗИНЫ ДЛЯ СМАРТФОНОВ */}
       {isMobileCartOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/50 z-50 flex flex-col justify-end">
           <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -619,7 +638,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* МОДАЛКА ПРОСМОТРА ИЗОБРАЖЕНИЙ */}
+      {/* МОДАЛКА ЗУМА ИЗОБРАЖЕНИЙ */}
       {selectedImage && (
         <div
           className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-pointer backdrop-blur-sm"
@@ -650,7 +669,7 @@ export default function Page() {
                   placeholder="Введіть повне ім'я"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
                 />
               </div>
               <div>
@@ -660,7 +679,7 @@ export default function Page() {
                   placeholder="+380"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -671,7 +690,7 @@ export default function Page() {
                     placeholder="Київ"
                     value={clientCity}
                     onChange={(e) => setClientCity(e.target.value)}
-                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
                   />
                 </div>
                 <div>
@@ -681,7 +700,7 @@ export default function Page() {
                     placeholder="Оптика+"
                     value={clientStore}
                     onChange={(e) => setClientStore(e.target.value)}
-                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
                   />
                 </div>
               </div>
@@ -692,7 +711,7 @@ export default function Page() {
                   placeholder="№ відділення або адреса"
                   value={clientAddress}
                   onChange={(e) => setClientAddress(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
                 />
               </div>
               <div>
@@ -702,7 +721,7 @@ export default function Page() {
                   placeholder="Ім'я менеджера"
                   value={manager}
                   onChange={(e) => setManager(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none bg-white"
                 />
               </div>
               <div>
@@ -712,7 +731,7 @@ export default function Page() {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={3}
-                  className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans text-xs sm:text-sm bg-white"
+                  className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none text-xs sm:text-sm bg-white"
                 />
               </div>
             </div>
@@ -734,15 +753,17 @@ export default function Page() {
         </div>
       )}
 
-      {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА */}
+      {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА (ОБНОВЛЕННОЕ) */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-2xl rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
             <h2 className="text-xl sm:text-2xl font-black mb-4 text-gray-950 border-b pb-2">Попередній перегляд замовлення</h2>
+            
             <div className="overflow-x-auto max-h-[50vh] space-y-2 pr-1">
               <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr className="bg-gray-100 border-b-2 border-gray-300 font-black">
+                    <th className="p-2">Фото</th>
                     <th className="p-2">Модель</th>
                     <th className="p-2 text-center">Кіл-ть</th>
                     <th className="p-2 text-right">Ціна $</th>
@@ -750,27 +771,82 @@ export default function Page() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cart.map((item) => (
-                    <tr key={item.id} className="border-b last:border-0 font-medium">
-                      <td className="p-2 font-bold">{item.name}</td>
-                      <td className="p-2 text-center font-black">{item.quantity}</td>
-                      <td className="p-2 text-right">({item.price.toFixed(2)} $)</td>
-                      <td className="p-2 text-right text-emerald-800 font-bold">{(item.price * currentRate * item.quantity).toFixed(2)} грн</td>
-                    </tr>
-                  ))}
+                  {cart.map((item) => {
+                    const hasPrice = item.price > 0;
+                    const itemTotalUAH = item.price * currentRate * item.quantity;
+
+                    return (
+                      <tr key={item.id} className="border-b last:border-0 font-medium items-center">
+                        {/* Картинка / Мем-заглушка в превью */}
+                        <td className="p-2 w-16 h-16 flex-shrink-0">
+                          {item.image ? (
+                            <img 
+                              src={item.image} 
+                              className="w-12 h-12 object-contain bg-gray-50 border border-gray-300 rounded-md" 
+                              alt="" 
+                            />
+                          ) : (
+                            <div className="w-12 h-12 border border-dashed border-blue-400 bg-blue-50 rounded-md flex flex-col items-center justify-center text-center p-0.5 leading-none overflow-hidden">
+                              <span className="text-[14px] block select-none">🎨👓</span>
+                              <span className="text-[7px] font-black text-blue-700 tracking-tighter uppercase mt-0.5">ще малюємо фото</span>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Название */}
+                        <td className="p-2">
+                          <div className="font-bold text-gray-950">{item.name}</div>
+                          <div className="text-[10px] text-gray-500 font-mono">Розмір: {item.sizes}</div>
+                        </td>
+
+                        {/* Кнопки управления количеством в превью */}
+                        <td className="p-2 text-center">
+                          <div className="flex items-center justify-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-300 inline-flex">
+                            <button
+                              onClick={() => decreaseQty(item.id)}
+                              className="w-5 h-5 bg-white hover:bg-gray-200 rounded text-xs font-black text-gray-900 flex items-center justify-center border border-gray-300"
+                            >
+                              -
+                            </button>
+                            <span className="text-xs font-black text-gray-950 w-5 text-center">{item.quantity}</span>
+                            <button
+                              onClick={() => {
+                                if (item.quantity < item.stock) increaseQty(item.id);
+                              }}
+                              className="w-5 h-5 bg-white hover:bg-gray-200 rounded text-xs font-black text-gray-900 flex items-center justify-center border border-gray-300"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Вывод цены */}
+                        <td className="p-2 text-right font-bold">
+                          {hasPrice ? `(${item.price.toFixed(2)} $)` : <span className="text-amber-700 text-[11px] font-black">ціну уточнюйте</span>}
+                        </td>
+
+                        {/* Вывод суммы */}
+                        <td className="p-2 text-right text-emerald-800 font-black">
+                          {hasPrice ? `${itemTotalUAH.toFixed(2)} грн` : <span className="text-amber-700 text-[11px] font-black">—</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
+
             <div className="mt-4 pt-3 border-t-2 border-gray-300 flex justify-between items-center font-black text-sm sm:text-base">
               <span>Разом позицій: {totalItems}</span>
               <span className="text-emerald-800 text-right">
                 {totalPriceUSD.toFixed(2)}$ <span className="text-xs text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span>
               </span>
             </div>
+            
             <div className="mt-5">
               <button
                 onClick={() => setShowPreview(false)}
-                className="w-full bg-gray-900 text-white font-bold py-2.5 rounded-xl hover:bg-black text-xs sm:text-sm"
+                className="w-full bg-gray-900 text-white font-bold py-2.5 rounded-xl hover:bg-black transition text-xs sm:text-sm"
               >
                 Закрити перегляд
               </button>
