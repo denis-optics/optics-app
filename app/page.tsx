@@ -58,8 +58,8 @@ export default function Page() {
             const cleanRate = String(rateValue).replace(/\s+/g, '').replace(',', '.')
             const parsedRate = parseFloat(cleanRate)
             if (!isNaN(parsedRate) && parsedRate > 0) {
-              setCurrentRate(parsedRate)
-            }
+  setCurrentRate(parsedRate * 1.02)
+}
           }
 
           if (data[1]) {
