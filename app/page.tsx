@@ -22,14 +22,6 @@ type CartItem = Product & {
 const ADMIN_PASSWORD = 'admin2026'
 const GUEST_PASSWORD = 'optics2026'
 const DEFAULT_FALLBACK_RATE = 44.20 // Чистый базовый курс на случай сбоя сети
-const BRANDS = [
-  'INVU',
-  'STYLE MARK',
-  'PERSONA',
-  'INVU FRAME',
-  'INVU CLIP-ON',
-  'STYLE MARK CLIP-ON'
-]
 const START_BACKGROUND_URL = 'https://static.wixstatic.com/media/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg/v1/fill/w_868,h_825,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg'
 
 export default function Page() {
@@ -40,7 +32,7 @@ export default function Page() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [quantities, setQuantities] = useState<Record<number, number>>({})
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [selectedBrand, setSelectedBrand] = useState('INVU')
+  const [selectedBrand, setSelectedBrand] = useState('')
   const [search, setSearch] = useState('')
 
   // Состояние курса валют и даты изменения
@@ -107,9 +99,20 @@ export default function Page() {
           }
         })
         setProducts(formatted)
+        
+        // Автоматически выбираем первую торговую марку из таблицы в качестве активного фильтра
+        if (formatted.length > 0) {
+          const firstBrand = formatted.find(p => p.brand)?.brand || ''
+          setSelectedBrand(firstBrand)
+        }
       })
       .catch((err) => console.error("Помилка завантаження даних товарів:", err))
   }, [])
+
+  // Динамический список уникальных брендов прямо из Google Sheets
+  const dynamicBrands = useMemo(() => {
+    return Array.from(new Set(products.map(p => p.brand))).filter(Boolean)
+  }, [products])
 
   const [showCheckout, setShowCheckout] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -223,7 +226,7 @@ export default function Page() {
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows)
     const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення') // Ошибка исправлена тут
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення')
 
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
     return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -373,18 +376,16 @@ export default function Page() {
     </>
   )
 
-  // СТАРТОВОЕ ОКНО ВХОДА С ПАРОЛЕМ И ВАШЕЙ ФОНОВОЙ КАРТИНКОЙ
+  // СТАРТОВОЕ ОКНО ВХОДА С ПАРОЛЕМ (БЕЗ РАЗМЫТИЯ, НА ВСЮ ВЫСОТУ И ШИРИНУ)
   if (!authorized) {
     return (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat w-screen h-screen"
         style={{ backgroundImage: `url(${START_BACKGROUND_URL})` }}
       >
-        {/* Затемняющий слой без размытия */}
-        <div className="absolute inset-0 bg-black/30"></div> 
-        
+        <div className="absolute inset-0 bg-black/30"></div>
         <div className="bg-white/95 p-6 sm:p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center relative z-10 border border-white/20">
-          <h1 className="text-xl sm:text-2xl font-black text-gray-950 mb-1 tracking-tight">Вхід до каталогу</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-950 mb-1 tracking-tight">Вхід в кабінет оптики</h1>
           <p className="text-xs text-gray-600 font-bold mb-6">Будь ласка, введіть ваш пароль доступу</p>
           <input
             type="password"
@@ -424,7 +425,7 @@ export default function Page() {
               className="border-2 border-gray-300 p-2 rounded-lg text-sm bg-white font-bold text-gray-900 disabled:opacity-40 w-full sm:w-auto min-w-[180px]"
               disabled={search.trim() !== ''}
             >
-              {BRANDS.map((b) => (
+              {dynamicBrands.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
@@ -445,7 +446,7 @@ export default function Page() {
           </div>
         </div>
         {search.trim() !== '' && (
-          <p className="text-[11px] text-blue-700 font-bold"> ⚠️ Активовано наскрізний пошук. Показуються всі модели, включаючи відсутні на складі.</p>
+          <p className="text-[11px] text-blue-700 font-bold"> ⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
         )}
       </div>
 
