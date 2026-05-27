@@ -223,7 +223,7 @@ export default function Page() {
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows)
     const workbook = XLSX.utils.book_new()
-    XXLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення')
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення') // Ошибка исправлена тут
 
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
     return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -443,7 +443,7 @@ export default function Page() {
           </div>
         </div>
         {search.trim() !== '' && (
-          <p className="text-[11px] text-blue-700 font-bold"> ⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
+          <p className="text-[11px] text-blue-700 font-bold"> ⚠️ Активовано наскрізний пошук. Показуються всі модели, включаючи відсутні на складі.</p>
         )}
       </div>
 
