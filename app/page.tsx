@@ -719,7 +719,7 @@ export default function Page() {
                 <tbody>
                   {cart.map((item) => {
                     const hasPrice = item.price > 0;
-                    const itemTotalUAH = item.price * currentRate * item.quantity;
+                    const itemTotalUAH = item.price * currentRate * item.quantity * 1.02;
                     const placeholderImg = "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=300&auto=format&fit=crop&q=60";
 
                     return (
