@@ -377,12 +377,14 @@ export default function Page() {
   if (!authorized) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cover bg-center"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat w-screen h-screen"
         style={{ backgroundImage: `url(${START_BACKGROUND_URL})` }}
       >
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-xs"></div>
+        {/* Затемняющий слой без размытия */}
+        <div className="absolute inset-0 bg-black/30"></div> 
+        
         <div className="bg-white/95 p-6 sm:p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center relative z-10 border border-white/20">
-          <h1 className="text-xl sm:text-2xl font-black text-gray-950 mb-1 tracking-tight">Вхід в кабінет оптики</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-950 mb-1 tracking-tight">Вхід до каталогу</h1>
           <p className="text-xs text-gray-600 font-bold mb-6">Будь ласка, введіть ваш пароль доступу</p>
           <input
             type="password"
