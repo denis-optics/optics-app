@@ -58,7 +58,7 @@ export default function Page() {
             const cleanRate = String(rateValue).replace(/\s+/g, '').replace(',', '.')
             const parsedRate = parseFloat(cleanRate)
             if (!isNaN(parsedRate) && parsedRate > 0) {
-  setCurrentRate(parsedRate * 1.02)
+  setCurrentRate(parsedRate )
 }
           }
 
@@ -171,7 +171,7 @@ export default function Page() {
       (acc, item) => {
         acc.totalItems += item.quantity
         acc.totalPriceUSD += item.price * item.quantity
-        acc.totalPriceUAH += item.price * currentRate * item.quantity
+        acc.totalPriceUAH += item.price * currentRate * 1.02 * item.quantity
         return acc
       },
       { totalItems: 0, totalPriceUAH: 0, totalPriceUSD: 0 }
@@ -215,9 +215,9 @@ export default function Page() {
         p.sizes,
         String(p.quantity),
         hasPrice ? p.price.toFixed(2) : 'Ціну уточнюйте',
-        hasPrice ? (p.price * currentRate).toFixed(2) : '—',
+        hasPrice ? (p.price * currentRate* 1.02).toFixed(2) : '—',
         hasPrice ? (p.price * p.quantity).toFixed(2) : '—',
-        hasPrice ? (p.price * currentRate * p.quantity).toFixed(2) : '—'
+        hasPrice ? (p.price * currentRate * 1.02 * p.quantity).toFixed(2) : '—'
       ])
     })
 
@@ -324,7 +324,7 @@ export default function Page() {
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-xs line-clamp-1 text-gray-900">{p.name}</div>
                 <div className="text-xs text-emerald-800 font-bold mt-0.5">
-                  {p.price > 0 ? `${(p.price * p.quantity).toFixed(2)}$` : 'Ціну уточнюйте'} {p.price > 0 && <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * p.quantity).toFixed(2)} грн)</span>}
+                  {p.price > 0 ? `${(p.price * p.quantity).toFixed(2)}$` : 'Ціну уточнюйте'} {p.price > 0 && <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * 1.02 * p.quantity).toFixed(2)} грн)</span>}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <button
@@ -501,7 +501,7 @@ export default function Page() {
                       <>
                         <span className="text-gray-950 font-black text-sm sm:text-base bg-gray-200 px-2 py-0.5 rounded border border-gray-300">({p.price} $)</span>
                         <span className="text-emerald-800 font-black text-base sm:text-lg">
-                          {(p.price * currentRate).toFixed(2)} грн
+                          {(p.price * currentRate* 1.02).toFixed(2)} грн
                         </span>
                       </>
                     ) : (
