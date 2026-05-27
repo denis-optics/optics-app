@@ -460,7 +460,7 @@ export default function Page() {
               <div
                 key={p.id}
                 className={`border-2 border-gray-300 rounded-2xl p-4 shadow-md relative flex flex-col justify-between transition-all duration-200 hover:border-gray-400 ${
-                  isOutOfStock ? 'opacity-60 bg-gray-200' : 'bg-gray-50/50'
+                  isOutOfStock ? 'opacity-60 bg-gray-200' : 'bg-gray-100'
                 }`}
               >
                 {p.promo && (
@@ -777,7 +777,7 @@ export default function Page() {
                         </td>
 
                         {/* Цена */}
-                        <td className="p-2 text-right font-bold">
+                        <td className="p-2 text-right font-black text-blue-950 text-sm">
                           {hasPrice ? `(${item.price.toFixed(2)} $)` : <span className="text-amber-700 text-[11px] font-black">ціну уточнюйте</span>}
                         </td>
 
