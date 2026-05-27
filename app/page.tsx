@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 
 type Product = {
   id: number
@@ -19,7 +21,7 @@ type CartItem = Product & {
 
 const ADMIN_PASSWORD = 'admin2026'
 const GUEST_PASSWORD = 'optics2026'
-const DEFAULT_FALLBACK_RATE = 44.20 // Базовый курс на случай сбоя сети
+const DEFAULT_FALLBACK_RATE = 44.20 // Чистый базовый курс на случай сбоя сети
 const BRANDS = [
   'INVU',
   'STYLE MARK',
@@ -186,78 +188,45 @@ export default function Page() {
     })
   }, [products, selectedBrand, search])
 
-  // Генерация Excel в формате XML-HTML: гарантирует автоширину колонок, цвета и рамки
+  // Правильная генерация полноценного Excel файла (.xlsx), исключающая ошибки формата
   const generateExcelBlob = () => {
-    const today = new Date().toLocaleDateString('uk-UA');
-    
-    const htmlContent = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8">
-        <style>
-          table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11pt; }
-          td { border: 1px solid #D3D3D3; padding: 6px 12px; white-space: nowrap; }
-          .label { font-weight: bold; background-color: #F2F2F2; width: 160px; }
-          .value { text-align: left; }
-          .header-row td { background-color: #1F4E78; color: #FFFFFF; font-weight: bold; text-align: center; border: 1px solid #1F4E78; }
-          .total-row td { background-color: #D9E1F2; font-weight: bold; border-top: 2px solid #1F4E78; }
-          .text-center { text-align: center; }
-          .text-right { text-align: right; }
-          .price-missing { color: #B71C1C; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <table>
-          <tr><td class="label">ПІБ клієнта</td><td class="value" colspan="7">${clientName || '—'}</td></tr>
-          <tr><td class="label">Контактна інформація</td><td class="value" colspan="7" style="mso-number-format:'\\@';">${clientPhone || '—'}</td></tr>
-          <tr><td class="label">Місто</td><td class="value" colspan="7">${clientCity || '—'}</td></tr>
-          <tr><td class="label">Адреса доставки</td><td class="value" colspan="7">${clientAddress || '—'}</td></tr>
-          <tr><td class="label">Назва магазину</td><td class="value" colspan="7">${clientStore || '—'}</td></tr>
-          <tr><td class="label">Менеджер</td><td class="value" colspan="7">${manager || '—'}</td></tr>
-          <tr><td class="label">Коментар</td><td class="value" colspan="7">${comment || '—'}</td></tr>
-          <tr><td class="label">Дата замовлення</td><td class="value" colspan="7">${today}</td></tr>
-          <tr><td colspan="8" style="border:none; height: 15px;"></td></tr>
-          
-          <tr class="header-row">
-            <td>Колекція</td>
-            <td>Артикул</td>
-            <td>Розміри</td>
-            <td>Кількість</td>
-            <td>Ціна $</td>
-            <td>Ціна грн</td>
-            <td>Сума $</td>
-            <td>Сума грн</td>
-          </tr>
-          ${cart.map(p => {
-            const hasPrice = p.price > 0;
-            return `
-              <tr>
-                <td>${p.brand}</td>
-                <td style="mso-number-format:'\\@'; font-weight: bold;">${p.name}</td>
-                <td class="text-center">${p.sizes}</td>
-                <td class="text-center">${p.quantity}</td>
-                <td class="text-right">${hasPrice ? p.price.toFixed(2) : '<span class="price-missing">Ціну уточнюйте</span>'}</td>
-                <td class="text-right">${hasPrice ? (p.price * currentRate).toFixed(2) : '—'}</td>
-                <td class="text-right">${hasPrice ? (p.price * p.quantity).toFixed(2) : '—'}</td>
-                <td class="text-right" style="color: #1B5E20; font-weight: bold;">${hasPrice ? (p.price * currentRate * p.quantity).toFixed(2) : '—'}</td>
-              </tr>
-            `;
-          }).join('')}
-          
-          <tr class="total-row">
-            <td colspan="3">Разом</td>
-            <td class="text-center">${totalItems}</td>
-            <td></td>
-            <td></td>
-            <td class="text-right">${totalPriceUSD.toFixed(2)}</td>
-            <td class="text-right">${totalPriceUAH.toFixed(2)}</td>
-          </tr>
-        </table>
-      </body>
-      </html>
-    `;
+    const today = new Date().toLocaleDateString('uk-UA')
+    const rows = [
+      ['ПІБ клієнта', clientName || '—'],
+      ['Контактна інформація', clientPhone || '—'],
+      ['Місто', clientCity || '—'],
+      ['Адреса доставки', clientAddress || '—'],
+      ['Назва магазину', clientStore || '—'],
+      ['Менеджер', manager || '—'],
+      ['Коментар', comment || '—'],
+      ['Дата замовлення', today],
+      [], // Пустая строка-разделитель
+      ['Колекція', 'Артикул', 'Розміри', 'Кількість', 'Ціна $', 'Ціна грн', 'Сума $', 'Сума грн']
+    ]
 
-    return new Blob([htmlContent], { type: 'application/vnd.ms-excel' });
+    cart.forEach((p) => {
+      const hasPrice = p.price > 0
+      rows.push([
+        p.brand,
+        p.name,
+        p.sizes,
+        String(p.quantity),
+        hasPrice ? p.price.toFixed(2) : 'Ціну уточнюйте',
+        hasPrice ? (p.price * currentRate).toFixed(2) : '—',
+        hasPrice ? (p.price * p.quantity).toFixed(2) : '—',
+        hasPrice ? (p.price * currentRate * p.quantity).toFixed(2) : '—'
+      ])
+    })
+
+    rows.push([])
+    rows.push(['Разом', '', '', String(totalItems), '', '', totalPriceUSD.toFixed(2), totalPriceUAH.toFixed(2)])
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XXLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення')
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+    return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   }
 
   const handleAuth = (inputPass: string) => {
@@ -294,7 +263,7 @@ export default function Page() {
       formData.append('comment', comment)
       formData.append('totalUSD', totalPriceUSD.toFixed(2))
       formData.append('totalUAH', totalPriceUAH.toFixed(2))
-      formData.append('excelFile', excelBlob, `Order_${clientName.replace(/\s+/g, '_')}.xls`)
+      formData.append('excelFile', excelBlob, `Order_${clientName.replace(/\s+/g, '_')}.xlsx`)
 
       const res = await fetch('/api/send-order', {
         method: 'POST',
@@ -303,13 +272,7 @@ export default function Page() {
       if (!res.ok) throw new Error()
       
       // Скачивание файла клиенту
-      const url = window.URL.createObjectURL(excelBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `zamovlennya_${clientName.replace(/\s+/g, '_')}.xls`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      saveAs(excelBlob, `zamovlennya_${clientName.replace(/\s+/g, '_')}.xlsx`)
 
       alert('Замовлення успішно відправлено на пошту та у Telegram!')
 
@@ -409,6 +372,36 @@ export default function Page() {
       </div>
     </>
   )
+
+  // СТАРТОВОЕ ОКНО ВХОДА С ПАРОЛЕМ И ВАШЕЙ ФОНОВОЙ КАРТИНКОЙ
+  if (!authorized) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cover bg-center"
+        style={{ backgroundImage: `url(${START_BACKGROUND_URL})` }}
+      >
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-xs"></div>
+        <div className="bg-white/95 p-6 sm:p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center relative z-10 border border-white/20">
+          <h1 className="text-xl sm:text-2xl font-black text-gray-950 mb-1 tracking-tight">Вхід в кабінет оптики</h1>
+          <p className="text-xs text-gray-600 font-bold mb-6">Будь ласка, введіть ваш пароль доступу</p>
+          <input
+            type="password"
+            placeholder="Введіть пароль..."
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAuth(password)}
+            className="w-full border-2 border-gray-300 p-3 rounded-xl text-center font-black text-gray-900 text-base mb-4 focus:border-blue-600 focus:outline-none bg-white tracking-widest"
+          />
+          <button
+            onClick={() => handleAuth(password)}
+            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-3 rounded-xl transition text-sm shadow-md"
+          >
+            Увійти в каталог
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-3 sm:p-6 bg-gray-100 min-h-screen text-black pb-24 lg:pb-6">
@@ -588,7 +581,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* ЕДИНАЯ МОДАЛКА УВЕЛИЧЕНИЯ ИЗОБРАЖЕНИЙ (ИЗ КАТАЛОГА И ИЗ ПРЕДПРОСМОТРА) */}
+      {/* ЕДИНАЯ МОДАЛКА УВЕЛИЧЕНИЯ ИЗОБРАЖЕНИЙ */}
       {selectedImage && (
         <div
           className="fixed inset-0 bg-black/85 z-[60] flex items-center justify-center p-4 cursor-pointer backdrop-blur-md"
@@ -703,7 +696,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА С ВОЗМОЖНОСТЬЮ УВЕЛИЧЕНИЯ ФОТО */}
+      {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-2xl rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
@@ -728,20 +721,19 @@ export default function Page() {
 
                     return (
                       <tr key={item.id} className="border-b last:border-0 font-medium items-center">
-                        {/* Маленькое фото / Заглушка с возможностью клика для увеличения */}
+                        {/* Фото / Заглушка с возможностью увеличения */}
                         <td className="p-2 w-16 h-16 flex-shrink-0">
                           {item.image ? (
                             <img 
                               src={item.image} 
                               className="w-12 h-12 object-contain bg-gray-50 border border-gray-300 rounded-md cursor-pointer hover:opacity-80 active:scale-95 transition duration-150" 
-                              alt="Клікніть для збільшення" 
+                              alt="Збільшити" 
                               onClick={() => setSelectedImage(item.image)}
                             />
                           ) : (
                             <div 
                               className="w-12 h-12 border border-gray-300 bg-gray-50 rounded-md flex flex-col items-center justify-center text-center relative overflow-hidden group cursor-pointer"
                               onClick={() => setSelectedImage(placeholderImg)}
-                              title="Клікніть для перегляду"
                             >
                               <img 
                                 src={placeholderImg} 
@@ -755,13 +747,13 @@ export default function Page() {
                           )}
                         </td>
 
-                        {/* Описание товара (Артикул) */}
+                        {/* Артикул */}
                         <td className="p-2">
                           <div className="font-bold text-gray-950">{item.name}</div>
                           <div className="text-[10px] text-gray-500 font-mono">Бренд: {item.brand} | Розмір: {item.sizes}</div>
                         </td>
 
-                        {/* Кнопки количества прямо в таблице превью */}
+                        {/* Изменение количества */}
                         <td className="p-2 text-center">
                           <div className="flex items-center justify-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-300 inline-flex">
                             <button
@@ -782,12 +774,12 @@ export default function Page() {
                           </div>
                         </td>
 
-                        {/* Цена $ */}
+                        {/* Цена */}
                         <td className="p-2 text-right font-bold">
                           {hasPrice ? `(${item.price.toFixed(2)} $)` : <span className="text-amber-700 text-[11px] font-black">ціну уточнюйте</span>}
                         </td>
 
-                        {/* Сумма грн */}
+                        {/* Сумма */}
                         <td className="p-2 text-right text-emerald-800 font-black">
                           {hasPrice ? `${itemTotalUAH.toFixed(2)} грн` : <span className="text-amber-700 text-[11px] font-black">—</span>}
                         </td>
