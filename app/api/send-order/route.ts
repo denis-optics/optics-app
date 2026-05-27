@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const excelFile = formData.get('excelFile') as File | null
 
     const BOT_TOKEN = '8902109006:AAFc8yDh3qUME30aUtIXHqSbgj1XJjKcq0w'
-    const CHAT_ID = '-1003801504284' 
+    const CHAT_ID = '220058690' 
 
     const escapeHtml = (text: string) => {
       return String(text)
