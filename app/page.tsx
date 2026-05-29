@@ -25,22 +25,52 @@ const DEFAULT_FALLBACK_RATE = 44.20 // Чистый базовый курс на
 const START_BACKGROUND_URL = 'https://static.wixstatic.com/media/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg/v1/fill/w_868,h_825,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg'
 
 export default function Page() {
-  const [authorized, setAuthorized] = useState(false)
-  const [role, setRole] = useState<'admin' | 'guest' | null>(null)
+  // Инициализация состояний из sessionStorage для предотвращения сброса при обновлении страницы
+  const [authorized, setAuthorized] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('auth_catalog') === 'true'
+    }
+    return false
+  })
+  
+  const [role, setRole] = useState<'admin' | 'guest' | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('role_catalog') as 'admin' | 'guest' | null
+    }
+    return null
+  })
+
   const [password, setPassword] = useState('')
   const [products, setProducts] = useState<Product[]>([])
-  const [cart, setCart] = useState<CartItem[]>([])
+  
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedCart = sessionStorage.getItem('cart_catalog')
+      return savedCart ? JSON.parse(savedCart) : []
+    }
+    return []
+  })
+
   const [quantities, setQuantities] = useState<Record<number, number>>({})
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedBrand, setSelectedBrand] = useState('')
   const [search, setSearch] = useState('')
-
+  
   // Состояние курса валют и даты изменения
   const [currentRate, setCurrentRate] = useState<number>(DEFAULT_FALLBACK_RATE)
   const [rateDate, setRateDate] = useState<string>('')
   const [isRateLoading, setIsRateLoading] = useState(true)
-
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
+
+  // Синхронизация корзины с sessionStorage при её изменении
+  useEffect(() => {
+    sessionStorage.setItem('cart_catalog', JSON.stringify(cart))
+  }, [cart])
+
+  // Скролл к началу страницы при изменении фильтров (выбор бренда или ввод текста)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [selectedBrand, search])
 
   useEffect(() => {
     // 1. Загрузка курса и даты изменения из вкладки "Course"
@@ -53,15 +83,13 @@ export default function Page() {
         if (data && data.length > 0) {
           const firstRow = data[0]
           const rateValue = firstRow['Курс'] || firstRow['курс'] || firstRow['Rate'] || Object.values(firstRow)[0]
-
           if (rateValue) {
             const cleanRate = String(rateValue).replace(/\s+/g, '').replace(',', '.')
             const parsedRate = parseFloat(cleanRate)
             if (!isNaN(parsedRate) && parsedRate > 0) {
-  setCurrentRate(parsedRate )
-}
+              setCurrentRate(parsedRate)
+            }
           }
-
           if (data[1]) {
             const possibleDate = Object.values(data[1])[0] || Object.values(data[0])[1];
             if (possibleDate && String(possibleDate).includes('.')) {
@@ -99,7 +127,7 @@ export default function Page() {
           }
         })
         setProducts(formatted)
-        
+
         // Автоматически выбираем первую торговую марку из таблицы в качестве активного фильтра
         if (formatted.length > 0) {
           const firstBrand = formatted.find(p => p.brand)?.brand || ''
@@ -129,7 +157,6 @@ export default function Page() {
     if (!product) return
     const targetQty = Math.max(1, Math.min(newQty, product.stock))
     setQuantities((prev) => ({ ...prev, [id]: targetQty }))
-
     setCart((prevCart) =>
       prevCart.map((item) =>
         item.id === id ? { ...item, quantity: targetQty } : item
@@ -154,6 +181,10 @@ export default function Page() {
     } else {
       setCart([...cart, { ...product, quantity: qty }])
     }
+  }
+
+  const removeFromCart = (id: number) => {
+    setCart(cart.filter((item) => item.id !== id))
   }
 
   const renderStockStatus = (stock: number) => {
@@ -206,7 +237,6 @@ export default function Page() {
       [], // Пустая строка-разделитель
       ['Колекція', 'Артикул', 'Розміри', 'Кількість', 'Ціна $', 'Ціна грн', 'Сума $', 'Сума грн']
     ]
-
     cart.forEach((p) => {
       const hasPrice = p.price > 0
       rows.push([
@@ -215,19 +245,16 @@ export default function Page() {
         p.sizes,
         String(p.quantity),
         hasPrice ? p.price.toFixed(2) : 'Ціну уточнюйте',
-        hasPrice ? (p.price * currentRate* 1.02).toFixed(2) : '—',
+        hasPrice ? (p.price * currentRate * 1.02).toFixed(2) : '—',
         hasPrice ? (p.price * p.quantity).toFixed(2) : '—',
         hasPrice ? (p.price * currentRate * 1.02 * p.quantity).toFixed(2) : '—'
       ])
     })
-
     rows.push([])
     rows.push(['Разом', '', '', String(totalItems), '', '', totalPriceUSD.toFixed(2), totalPriceUAH.toFixed(2)])
-
     const worksheet = XLSX.utils.aoa_to_sheet(rows)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення')
-
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
     return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   }
@@ -236,9 +263,13 @@ export default function Page() {
     if (inputPass === ADMIN_PASSWORD) {
       setRole('admin')
       setAuthorized(true)
+      sessionStorage.setItem('auth_catalog', 'true')
+      sessionStorage.setItem('role_catalog', 'admin')
     } else if (inputPass === GUEST_PASSWORD) {
       setRole('guest')
       setAuthorized(true)
+      sessionStorage.setItem('auth_catalog', 'true')
+      sessionStorage.setItem('role_catalog', 'guest')
     } else {
       alert('Невірний пароль')
     }
@@ -249,14 +280,11 @@ export default function Page() {
       alert('Будь ласка, заповніть обов\'язкові поля (ПІБ та Телефон)')
       return
     }
-
     const isConfirmed = confirm('Ви впевнені, що хочете сформувати та надіслати замовлення?')
     if (!isConfirmed) return
-
     try {
       const excelBlob = generateExcelBlob()
       const formData = new FormData()
-
       formData.append('clientName', clientName)
       formData.append('clientPhone', clientPhone)
       formData.append('clientCity', clientCity)
@@ -267,18 +295,15 @@ export default function Page() {
       formData.append('totalUSD', totalPriceUSD.toFixed(2))
       formData.append('totalUAH', totalPriceUAH.toFixed(2))
       formData.append('excelFile', excelBlob, `Order_${clientName.replace(/\s+/g, '_')}.xlsx`)
-
       const res = await fetch('/api/send-order', {
         method: 'POST',
         body: formData,
       })
       if (!res.ok) throw new Error()
-      
+
       // Скачивание файла клиенту
       saveAs(excelBlob, `zamovlennya_${clientName.replace(/\s+/g, '_')}.xlsx`)
-
       alert('Замовлення успішно відправлено на пошту та у Telegram!')
-
       setCart([])
       setQuantities({})
       setClientName('')
@@ -310,7 +335,7 @@ export default function Page() {
           <p className="text-gray-500 text-center mt-8 text-sm font-medium">Кошик порожній</p>
         ) : (
           cart.map((p) => (
-            <div key={p.id} className="flex gap-3 items-center border-b pb-3 last:border-0">
+            <div key={p.id} className="flex gap-3 items-center border-b pb-3 last:border-0 relative group">
               {p.image ? (
                 <img
                   src={p.image}
@@ -321,7 +346,7 @@ export default function Page() {
               ) : (
                 <div className="w-10 h-10 bg-gray-100 border border-gray-300 rounded-lg flex-shrink-0"></div>
               )}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-6">
                 <div className="font-bold text-xs line-clamp-1 text-gray-900">{p.name}</div>
                 <div className="text-xs text-emerald-800 font-bold mt-0.5">
                   {p.price > 0 ? `${(p.price * p.quantity).toFixed(2)}$` : 'Ціну уточнюйте'} {p.price > 0 && <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * 1.02 * p.quantity).toFixed(2)} грн)</span>}
@@ -342,13 +367,21 @@ export default function Page() {
                   </button>
                 </div>
               </div>
+              {/* Кнопка удаления товара из корзины в боковой панели */}
+              <button
+                onClick={() => removeFromCart(p.id)}
+                className="absolute right-0 top-1 text-gray-400 hover:text-red-600 text-lg font-bold p-1 transition duration-150"
+                title="Видалити"
+              >
+                &times;
+              </button>
             </div>
           ))
         )}
       </div>
       <div className="p-4 border-t bg-gray-100 sticky bottom-0">
         <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-700">
-          <span>Всього позицій:</span>
+          <span>Всього штук:</span>
           <span className="text-gray-950 font-black">{totalItems}</span>
         </div>
         <div className="flex justify-between font-black text-sm sm:text-base mt-2 border-b border-gray-300 pb-3 items-center">
@@ -430,7 +463,7 @@ export default function Page() {
               ))}
             </select>
           </div>
-          
+
           <div className="flex items-center justify-between lg:justify-end gap-3 bg-gray-50 p-2.5 rounded-xl border-2 border-gray-200 w-full lg:w-auto">
             <div className="flex flex-col items-start lg:items-end">
               <span className="text-[11px] sm:text-xs font-black text-gray-900 leading-tight">Поточний курс $:</span>
@@ -446,7 +479,7 @@ export default function Page() {
           </div>
         </div>
         {search.trim() !== '' && (
-          <p className="text-[11px] text-blue-700 font-bold"> ⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
+          <p className="text-[11px] text-blue-700 font-bold">  ⚠️  Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
         )}
       </div>
 
@@ -469,7 +502,7 @@ export default function Page() {
                     % АКЦІЯ
                   </div>
                 )}
-                
+
                 <div>
                   <div className="h-[175px] flex items-center justify-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                     {p.image ? (
@@ -485,216 +518,122 @@ export default function Page() {
                       <div className="w-full h-full bg-white rounded-xl"></div>
                     )}
                   </div>
-                  
+
                   <div className="mt-3.5 space-y-1.5">
                     <h2 className="font-black line-clamp-1 text-sm sm:text-base text-gray-950 tracking-tight">{p.name}</h2>
-                    <div className="flex flex-col gap-1 text-xs sm:text-sm font-bold">
-                      <span className="text-gray-700">Бренд: <span className="text-gray-950 font-black text-sm sm:text-base">{p.brand}</span></span>
-                      <span className="font-mono text-gray-700">Розмір: <span className="text-gray-950 font-black bg-white px-2 py-0.5 rounded border border-gray-300 text-sm">{p.sizes}</span></span>
+                    <div className="text-[11px] font-mono text-gray-500 uppercase tracking-wider">Бренд: {p.brand}</div>
+                    <p className="text-xs font-medium text-gray-700 line-clamp-2 min-h-[32px] leading-relaxed">{p.description || "Опис відсутній"}</p>
+                    <div className="text-xs text-gray-900 font-bold bg-white px-2.5 py-1 rounded-lg border border-gray-200 inline-block">
+                      Розміри: <span className="font-mono text-blue-800">{p.sizes}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t-2 border-gray-300">
-                  <div className="flex items-center justify-between gap-1">
-                    {p.price > 0 ? (
-                      <>
-                        <span className="text-gray-950 font-black text-sm sm:text-base bg-gray-200 px-2 py-0.5 rounded border border-gray-300">({p.price} $)</span>
-                        <span className="text-emerald-800 font-black text-base sm:text-lg">
-                          {(p.price * currentRate* 1.02).toFixed(2)} грн
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-amber-700 text-sm font-black uppercase tracking-tight">ціну уточнюйте</span>
-                    )}
+                <div className="mt-4 pt-3 border-t border-gray-200/80 space-y-3">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs font-bold text-gray-500">Наявність:</span>
+                    {renderStockStatus(p.stock)}
                   </div>
-                  
-                  <div className="flex items-center gap-2 mt-3 bg-white p-2 rounded-xl border-2 border-gray-300">
-                    <button
-                      disabled={isOutOfStock}
-                      onClick={() => decreaseQty(p.id)}
-                      className="w-10 h-10 bg-gray-100 rounded-lg font-black text-gray-950 hover:bg-gray-300 transition disabled:opacity-30 flex items-center justify-center text-lg border border-gray-300"
-                    >
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      disabled={isOutOfStock}
-                      value={isOutOfStock ? 0 : currentQty}
-                      onChange={(e) => updateQuantity(p.id, parseInt(e.target.value) || 1)}
-                      className="w-10 text-center font-black bg-transparent text-sm sm:text-base text-gray-950 focus:outline-none disabled:text-gray-400"
-                    />
-                    <button
-                      disabled={isOutOfStock}
-                      onClick={() => increaseQty(p.id)}
-                      className="w-10 h-10 bg-gray-100 rounded-lg font-black text-gray-950 hover:bg-gray-300 transition disabled:opacity-30 flex items-center justify-center text-lg border border-gray-300"
-                    >
-                      +
-                    </button>
-                    <div className="ml-auto pr-1">
-                      {renderStockStatus(p.stock)}
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500">Ціна:</span>
+                    <div className="text-right">
+                      {p.price > 0 ? (
+                        <>
+                          <div className="text-lg font-black text-blue-950 tracking-tight">{(p.price).toFixed(2)} $</div>
+                          <div className="text-xs font-black text-emerald-800">{(p.price * currentRate * 1.02).toFixed(2)} грн</div>
+                        </>
+                      ) : (
+                        <div className="text-xs font-black text-amber-700 uppercase tracking-tighter bg-amber-50 px-2 py-0.5 rounded border border-amber-200">ціну уточнюйте</div>
+                      )}
                     </div>
                   </div>
-                  
-                  <button
-                    disabled={isOutOfStock}
-                    onClick={() => toggleCart(p)}
-                    className={`mt-3 px-4 py-2.5 rounded-xl w-full text-white font-black transition text-sm shadow-md ${
-                      isOutOfStock
-                        ? 'bg-gray-400 cursor-not-allowed shadow-none'
-                        : isInCart ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'
-                    }`}
-                  >
-                    {isOutOfStock ? 'Немає в наявності' : isInCart ? 'Прибрати з кошика' : 'Обрати модель'}
-                  </button>
+
+                  {!isOutOfStock && (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between bg-white p-1 rounded-xl border border-gray-300 shadow-xs">
+                        <button
+                          onClick={() => {
+                            const current = quantities[p.id] || 1
+                            if (current > 1) updateQuantity(p.id, current - 1)
+                          }}
+                          className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-black text-gray-900 flex items-center justify-center border border-gray-200"
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-black text-gray-950 w-8 text-center">{currentQty}</span>
+                        <button
+                          onClick={() => {
+                            const current = quantities[p.id] || 1
+                            if (current < p.stock) updateQuantity(p.id, current + 1)
+                          }}
+                          className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-black text-gray-900 flex items-center justify-center border border-gray-200"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => toggleCart(p)}
+                        className={`w-full py-2.5 rounded-xl font-black text-xs sm:text-sm transition shadow-sm border ${
+                          isInCart
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700'
+                            : 'bg-blue-700 hover:bg-blue-800 text-white border-blue-800'
+                        }`}
+                      >
+                        {isInCart ? 'У замовленні ✓' : 'Додати в замовлення'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )
           })}
         </div>
 
-        {/* БОКОВАЯ КОРЗИНА ДЛЯ ПК */}
-        <div className="hidden lg:flex border-2 border-gray-200 rounded-2xl shadow bg-white sticky top-24 h-[85vh] flex-col justify-between overflow-hidden">
+        {/* БОКОВАЯ КОРЗИНА ДЛЯ ДЕКСТОПА */}
+        <div className="hidden lg:block col-span-1 bg-white rounded-2xl shadow border border-gray-200 h-fit sticky top-[90px] max-h-[calc(100vh-120px)] flex flex-col overflow-hidden">
           <CartContent />
         </div>
       </div>
 
-      {/* НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ ДЛЯ МОБИЛЬНЫХ */}
-      {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl p-3 z-40 flex items-center justify-between gap-4 rounded-t-2xl">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-gray-600">Обрано: <span className="text-gray-950 font-black">{totalItems} шт.</span></span>
-            <span className="text-emerald-800 font-black text-sm">{totalPriceUSD.toFixed(2)}$ <span className="text-xs font-bold text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span></span>
-          </div>
-          <button
-            onClick={() => setIsMobileCartOpen(true)}
-            className="bg-blue-700 text-white font-black px-4 py-2 rounded-xl text-xs sm:text-sm hover:bg-blue-800 transition"
-          >
-            Дивитись кошик
-          </button>
+      {/* НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 p-3 flex justify-between items-center z-40 shadow-xl">
+        <div className="flex flex-col">
+          <span className="text-[11px] font-bold text-gray-500">Всього у кошику:</span>
+          <span className="text-sm font-black text-gray-950">{totalItems} шт. ({totalPriceUAH.toFixed(2)} грн)</span>
         </div>
-      )}
+        <button
+          onClick={() => setIsMobileCartOpen(true)}
+          className="bg-blue-700 hover:bg-blue-800 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow border border-blue-800"
+        >
+          Відкрити замовлення
+        </button>
+      </div>
 
-      {/* МОДАЛЬНЫЙ КОШИК НА МОБИЛЬНЫХ */}
+      {/* МОДАЛЬНОЕ ОКНО КОРЗИНЫ НА МОБИЛЬНЫХ */}
       {isMobileCartOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/50 z-50 flex flex-col justify-end">
-          <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl">
+        <div className="lg:hidden fixed inset-0 z-50 bg-black/50 flex flex-col justify-end">
+          <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
             <CartContent />
           </div>
         </div>
       )}
 
-      {/* ЕДИНАЯ МОДАЛКА УВЕЛИЧЕНИЯ ИЗОБРАЖЕНИЙ */}
+      {/* МОДАЛЬНОЕ ОКНО ДЛЯ УВЕЛИЧЕНИЯ ИЗОБРАЖЕНИЙ */}
       {selectedImage && (
         <div
-          className="fixed inset-0 bg-black/85 z-[60] flex items-center justify-center p-4 cursor-pointer backdrop-blur-md"
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs cursor-zoom-out"
           onClick={() => setSelectedImage(null)}
         >
-          <div className="relative max-w-4xl max-h-full bg-white p-2 rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <img src={selectedImage} className="max-w-full max-h-[82vh] object-contain rounded-xl" alt="Zoomed Product" />
+          <div className="relative max-w-3xl w-full max-h-[90vh] flex items-center justify-center bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-white/10 cursor-default" onClick={(e) => e.stopPropagation()}>
+            <img src={selectedImage} className="max-w-full max-h-[80vh] object-contain rounded-2xl" alt="Збільшене фото" />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 bg-black/70 text-white font-black w-9 h-9 rounded-full flex items-center justify-center hover:bg-black transition text-xl shadow-md"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-gray-900/80 hover:bg-black text-white rounded-full w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-sm font-black transition shadow"
             >
-              ×
+              &times;
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* ОКНО ОФОРМЛЕНИЯ ЗАКАЗА */}
-      {showCheckout && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto backdrop-blur-xs">
-          <div className="bg-white w-full max-w-lg rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
-            <h2 className="text-xl sm:text-2xl font-black mb-4 text-gray-950 tracking-tight border-b-2 pb-2">Оформлення замовлення</h2>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-              <div>
-                <label className="block text-xs font-black text-gray-800 mb-1">ПІБ КЛІЄНТА *</label>
-                <input
-                  type="text"
-                  placeholder="Введіть повне ім'я"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-gray-800 mb-1">НОМЕР ТЕЛЕФОНУ *</label>
-                <input
-                  type="text"
-                  placeholder="+380"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-black text-gray-800 mb-1">МІСТО</label>
-                  <input
-                    type="text"
-                    placeholder="Київ"
-                    value={clientCity}
-                    onChange={(e) => setClientCity(e.target.value)}
-                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-gray-800 mb-1">НАЗВА МАГАЗИНУ</label>
-                  <input
-                    type="text"
-                    placeholder="Оптика+"
-                    value={clientStore}
-                    onChange={(e) => setClientStore(e.target.value)}
-                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-black text-gray-800 mb-1">АДРЕСА ДОСТАВКИ (НОВА ПОШТА)</label>
-                <input
-                  type="text"
-                  placeholder="№ відділення або адреса"
-                  value={clientAddress}
-                  onChange={(e) => setClientAddress(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-gray-800 mb-1">ВАШ МЕНЕДЖЕР</label>
-                <input
-                  type="text"
-                  placeholder="Ім'я менеджера"
-                  value={manager}
-                  onChange={(e) => setManager(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-gray-800 mb-1">КОМЕНТАР ДО ЗАМОВЛЕННЯ</label>
-                <textarea
-                  placeholder="Ваші коментарі до замовлення..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  rows={3}
-                  className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans text-xs sm:text-sm bg-white"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => setShowCheckout(false)}
-                className="flex-1 bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-300 text-xs sm:text-sm"
-              >
-                Назад
-              </button>
-              <button
-                onClick={sendOrder}
-                className="flex-1 bg-emerald-700 text-white font-black py-2.5 rounded-xl hover:bg-emerald-800 text-xs sm:text-sm shadow-md"
-              >
-                Надіслати замовлення
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -702,7 +641,7 @@ export default function Page() {
       {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-2xl rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
+          <div className="bg-white w-full max-w-3xl rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
             <h2 className="text-xl sm:text-2xl font-black mb-4 text-gray-950 border-b pb-2">Попередній перегляд замовлення</h2>
             
             <div className="overflow-x-auto max-h-[50vh] space-y-2 pr-1">
@@ -714,6 +653,7 @@ export default function Page() {
                     <th className="p-2 text-center">Кіл-ть</th>
                     <th className="p-2 text-right">Ціна $</th>
                     <th className="p-2 text-right">Сума грн</th>
+                    <th className="p-2 text-center text-red-600">Видалити</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -786,6 +726,17 @@ export default function Page() {
                         <td className="p-2 text-right text-emerald-800 font-black">
                           {hasPrice ? `${itemTotalUAH.toFixed(2)} грн` : <span className="text-amber-700 text-[11px] font-black">—</span>}
                         </td>
+
+                        {/* Кнопка удаления товара в окне превью */}
+                        <td className="p-2 text-center">
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-red-500 hover:text-red-700 font-bold text-lg px-2 py-1 transition duration-150"
+                            title="Видалити"
+                          >
+                            &times;
+                          </button>
+                        </td>
                       </tr>
                     )
                   })}
@@ -795,7 +746,7 @@ export default function Page() {
 
             {/* Итоговая строка */}
             <div className="mt-4 pt-3 border-t-2 border-gray-300 flex justify-between items-center font-black text-sm sm:text-base">
-              <span>Разом позицій: {totalItems}</span>
+              <span>Разом штук: {totalItems}</span>
               <span className="text-emerald-800 text-right">
                 {totalPriceUSD.toFixed(2)}$ <span className="text-xs text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span>
               </span>
@@ -808,6 +759,64 @@ export default function Page() {
               >
                 Закрити перегляд
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ОКНО ОФОРМЛЕНИЯ ЗАКАЗА */}
+      {showCheckout && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
+            <h2 className="text-lg sm:text-xl font-black mb-1 text-gray-950">Оформлення замовлення</h2>
+            <p className="text-[11px] text-gray-500 font-bold mb-4">Будь ласка, заповніть дані для доставки</p>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">ПІБ клієнта <span className="text-red-600">*</span></label>
+                <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Иван Иванов" className="w-full border-2 border-gray-300 p-2 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none bg-white text-gray-900" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">Телефон <span className="text-red-600">*</span></label>
+                <input type="text" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="+380" className="w-full border-2 border-gray-300 p-2 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none bg-white text-gray-900" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">Місто</label>
+                <input type="text" value={clientCity} onChange={(e) => setClientCity(e.target.value)} className="w-full border-2 border-gray-300 p-2 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none bg-white text-gray-900" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">Адреса доставки (Нова Пошта)</label>
+                <input type="text" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} placeholder="№ відділення або поштомату" className="w-full border-2 border-gray-300 p-2 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none bg-white text-gray-900" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">Назва магазину</label>
+                <input type="text" value={clientStore} onChange={(e) => setClientStore(e.target.value)} className="w-full border-2 border-gray-300 p-2 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none bg-white text-gray-900" />
+              </div>
+
+              {role === 'admin' && (
+                <div>
+                  <label className="block text-xs font-black text-gray-700 mb-1">Менеджер (Тільки адмін)</label>
+                  <input type="text" value={manager} onChange={(e) => setManager(e.target.value)} className="w-full border-2 border-gray-300 p-2 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none bg-white text-gray-900" />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 mb-1">Коментар до замовлення</label>
+                <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} className="w-full border-2 border-gray-300 p-2 rounded-xl text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none bg-white text-gray-900 resize-none"></textarea>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t font-black text-xs sm:text-sm text-right text-emerald-800 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100">
+              До сплати: {totalPriceUSD.toFixed(2)}$ ({totalPriceUAH.toFixed(2)} грн)
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-5">
+              <button onClick={() => setShowCheckout(false)} className="bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-300 transition text-xs sm:text-sm border border-gray-300">Назад до кошика</button>
+              <button onClick={sendOrder} className="bg-emerald-700 text-white font-black py-2.5 rounded-xl hover:bg-emerald-800 transition text-xs sm:text-sm shadow">Надіслати замовлення</button>
             </div>
           </div>
         </div>
