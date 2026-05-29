@@ -25,7 +25,7 @@ const DEFAULT_FALLBACK_RATE = 44.20 // Чистый базовый курс на
 const START_BACKGROUND_URL = 'https://static.wixstatic.com/media/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg/v1/fill/w_868,h_825,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg'
 
 export default function Page() {
-  // Инициализация состояний из sessionStorage для предотвращения сброса при обновлении страницы
+  // Инициализация состояний из sessionStorage для предотвращения сброса при оновлении страницы
   const [authorized, setAuthorized] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('auth_catalog') === 'true'
@@ -335,7 +335,7 @@ export default function Page() {
           <p className="text-gray-500 text-center mt-8 text-sm font-medium">Кошик порожній</p>
         ) : (
           cart.map((p) => (
-            <div key={p.id} className="flex gap-3 items-center border-b pb-3 last:border-0 relative group">
+            <div key={p.id} className="flex gap-3 items-center border-b pb-3 last:border-0">
               {p.image ? (
                 <img
                   src={p.image}
@@ -346,7 +346,7 @@ export default function Page() {
               ) : (
                 <div className="w-10 h-10 bg-gray-100 border border-gray-300 rounded-lg flex-shrink-0"></div>
               )}
-              <div className="flex-1 min-w-0 pr-6">
+              <div className="flex-1 min-w-0">
                 <div className="font-bold text-xs line-clamp-1 text-gray-900">{p.name}</div>
                 <div className="text-xs text-emerald-800 font-bold mt-0.5">
                   {p.price > 0 ? `${(p.price * p.quantity).toFixed(2)}$` : 'Ціну уточнюйте'} {p.price > 0 && <span className="text-gray-600 font-medium text-[10px]">({(p.price * currentRate * 1.02 * p.quantity).toFixed(2)} грн)</span>}
@@ -367,14 +367,6 @@ export default function Page() {
                   </button>
                 </div>
               </div>
-              {/* Кнопка удаления товара из корзины в боковой панели */}
-              <button
-                onClick={() => removeFromCart(p.id)}
-                className="absolute right-0 top-1 text-gray-400 hover:text-red-600 text-lg font-bold p-1 transition duration-150"
-                title="Видалити"
-              >
-                &times;
-              </button>
             </div>
           ))
         )}
