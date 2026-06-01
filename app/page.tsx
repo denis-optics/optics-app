@@ -21,7 +21,7 @@ type CartItem = Product & {
 
 const ADMIN_PASSWORD = 'admin2026'
 const GUEST_PASSWORD = 'optics2026'
-const DEFAULT_FALLBACK_RATE = 44.20 //базовий курс
+const DEFAULT_FALLBACK_RATE = 44.20 // Чистый базовый курс на случай сбоя сети
 const START_BACKGROUND_URL = 'https://static.wixstatic.com/media/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg/v1/fill/w_868,h_825,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/65047e_b23681171c07497b889c2c474fb7c9a1~mv2.jpg'
 
 export default function Page() {
@@ -34,15 +34,16 @@ export default function Page() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedBrand, setSelectedBrand] = useState('')
   const [search, setSearch] = useState('')
-  
-  // Курс валют та дата
+
+  // Состояние курса валют и даты изменения
   const [currentRate, setCurrentRate] = useState<number>(DEFAULT_FALLBACK_RATE)
   const [rateDate, setRateDate] = useState<string>('')
   const [isRateLoading, setIsRateLoading] = useState(true)
+
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false)
 
   useEffect(() => {
-    // 1. Завантаження курсу
+    // 1. Загрузка курса и даты изменения из вкладки "Course"
     fetch('https://opensheet.elk.sh/1gFtRzDVggVbSuzkZtiCs8KAqDV2u-5oCBWxDltFi_7g/Course')
       .then((res) => {
         if (!res.ok) throw new Error("Не вдалося завантажити сторінку Course")
@@ -52,13 +53,15 @@ export default function Page() {
         if (data && data.length > 0) {
           const firstRow = data[0]
           const rateValue = firstRow['Курс'] || firstRow['курс'] || firstRow['Rate'] || Object.values(firstRow)[0]
+
           if (rateValue) {
             const cleanRate = String(rateValue).replace(/\s+/g, '').replace(',', '.')
             const parsedRate = parseFloat(cleanRate)
             if (!isNaN(parsedRate) && parsedRate > 0) {
-              setCurrentRate(parsedRate)
-            }
+  setCurrentRate(parsedRate )
+}
           }
+
           if (data[1]) {
             const possibleDate = Object.values(data[1])[0] || Object.values(data[0])[1];
             if (possibleDate && String(possibleDate).includes('.')) {
@@ -76,7 +79,7 @@ export default function Page() {
         setIsRateLoading(false)
       })
 
-    // 2. Завантаження товарів
+    // 2. Загрузка товаров из вкладки "Sheet1"
     fetch('https://opensheet.elk.sh/1gFtRzDVggVbSuzkZtiCs8KAqDV2u-5oCBWxDltFi_7g/Sheet1')
       .then((res) => res.json())
       .then((data) => {
@@ -96,7 +99,8 @@ export default function Page() {
           }
         })
         setProducts(formatted)
-
+        
+        // Автоматически выбираем первую торговую марку из таблицы в качестве активного фильтра
         if (formatted.length > 0) {
           const firstBrand = formatted.find(p => p.brand)?.brand || ''
           setSelectedBrand(firstBrand)
@@ -105,6 +109,7 @@ export default function Page() {
       .catch((err) => console.error("Помилка завантаження даних товарів:", err))
   }, [])
 
+  // Динамический список уникальных брендов прямо из Google Sheets
   const dynamicBrands = useMemo(() => {
     return Array.from(new Set(products.map(p => p.brand))).filter(Boolean)
   }, [products])
@@ -124,6 +129,7 @@ export default function Page() {
     if (!product) return
     const targetQty = Math.max(1, Math.min(newQty, product.stock))
     setQuantities((prev) => ({ ...prev, [id]: targetQty }))
+
     setCart((prevCart) =>
       prevCart.map((item) =>
         item.id === id ? { ...item, quantity: targetQty } : item
@@ -185,6 +191,7 @@ export default function Page() {
     })
   }, [products, selectedBrand, search])
 
+  // Правильная генерация полноценного Excel файла (.xlsx), исключающая ошибки формата
   const generateExcelBlob = () => {
     const today = new Date().toLocaleDateString('uk-UA')
     const rows = [
@@ -196,9 +203,10 @@ export default function Page() {
       ['Менеджер', manager || '—'],
       ['Коментар', comment || '—'],
       ['Дата замовлення', today],
-      [], 
+      [], // Пустая строка-разделитель
       ['Колекція', 'Артикул', 'Розміри', 'Кількість', 'Ціна $', 'Ціна грн', 'Сума $', 'Сума грн']
     ]
+
     cart.forEach((p) => {
       const hasPrice = p.price > 0
       rows.push([
@@ -207,16 +215,19 @@ export default function Page() {
         p.sizes,
         String(p.quantity),
         hasPrice ? p.price.toFixed(2) : 'Ціну уточнюйте',
-        hasPrice ? (p.price * currentRate * 1.02).toFixed(2) : '—',
+        hasPrice ? (p.price * currentRate* 1.02).toFixed(2) : '—',
         hasPrice ? (p.price * p.quantity).toFixed(2) : '—',
         hasPrice ? (p.price * currentRate * 1.02 * p.quantity).toFixed(2) : '—'
       ])
     })
+
     rows.push([])
     rows.push(['Разом', '', '', String(totalItems), '', '', totalPriceUSD.toFixed(2), totalPriceUAH.toFixed(2)])
+
     const worksheet = XLSX.utils.aoa_to_sheet(rows)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Замовлення')
+
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
     return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   }
@@ -238,11 +249,14 @@ export default function Page() {
       alert('Будь ласка, заповніть обов\'язкові поля (ПІБ та Телефон)')
       return
     }
+
     const isConfirmed = confirm('Ви впевнені, що хочете сформувати та надіслати замовлення?')
     if (!isConfirmed) return
+
     try {
       const excelBlob = generateExcelBlob()
       const formData = new FormData()
+
       formData.append('clientName', clientName)
       formData.append('clientPhone', clientPhone)
       formData.append('clientCity', clientCity)
@@ -253,15 +267,18 @@ export default function Page() {
       formData.append('totalUSD', totalPriceUSD.toFixed(2))
       formData.append('totalUAH', totalPriceUAH.toFixed(2))
       formData.append('excelFile', excelBlob, `Order_${clientName.replace(/\s+/g, '_')}.xlsx`)
-      
+
       const res = await fetch('/api/send-order', {
         method: 'POST',
         body: formData,
       })
       if (!res.ok) throw new Error()
-
+      
+      // Скачивание файла клиенту
       saveAs(excelBlob, `zamovlennya_${clientName.replace(/\s+/g, '_')}.xlsx`)
+
       alert('Замовлення успішно відправлено на пошту та у Telegram!')
+
       setCart([])
       setQuantities({})
       setClientName('')
@@ -277,7 +294,6 @@ export default function Page() {
     }
   }
 
-  // ВІДНОВЛЕНА ОРИГІНАЛЬНА КОРЗИНА (стилі тексту text-xs, font-bold тощо)
   const CartContent = () => (
     <>
       <div className="p-4 border-b flex justify-between items-center bg-white">
@@ -360,6 +376,7 @@ export default function Page() {
     </>
   )
 
+  // СТАРТОВОЕ ОКНО ВХОДА С ПАРОЛЕМ (БЕЗ РАЗМЫТИЯ, НА ВСЮ ВЫСОТУ И ШИРИНУ)
   if (!authorized) {
     return (
       <div
@@ -413,7 +430,7 @@ export default function Page() {
               ))}
             </select>
           </div>
-
+          
           <div className="flex items-center justify-between lg:justify-end gap-3 bg-gray-50 p-2.5 rounded-xl border-2 border-gray-200 w-full lg:w-auto">
             <div className="flex flex-col items-start lg:items-end">
               <span className="text-[11px] sm:text-xs font-black text-gray-900 leading-tight">Поточний курс $:</span>
@@ -429,11 +446,11 @@ export default function Page() {
           </div>
         </div>
         {search.trim() !== '' && (
-          <p className="text-[11px] text-blue-700 font-bold">  ⚠️  Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
+          <p className="text-[11px] text-blue-700 font-bold"> ⚠️ Активовано наскрізний пошук. Показуються всі моделі, включаючи відсутні на складі.</p>
         )}
       </div>
 
-      {/* КАТАЛОГ З ОРИГІНАЛЬНИМИ СТИЛЯМИ КАРТОЧОК */}
+      {/* КАТАЛОГ */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="col-span-1 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {filteredProducts.map((p) => {
@@ -452,7 +469,7 @@ export default function Page() {
                     % АКЦІЯ
                   </div>
                 )}
-
+                
                 <div>
                   <div className="h-[175px] flex items-center justify-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                     {p.image ? (
@@ -468,162 +485,304 @@ export default function Page() {
                       <div className="w-full h-full bg-white rounded-xl"></div>
                     )}
                   </div>
-
-                  {/* ОРИГІНАЛЬНІ ШРИФТИ ТА ВІДСТУПИ */}
+                  
                   <div className="mt-3.5 space-y-1.5">
                     <h2 className="font-black line-clamp-1 text-sm sm:text-base text-gray-950 tracking-tight">{p.name}</h2>
                     <div className="flex flex-col gap-1 text-xs sm:text-sm font-bold">
                       <span className="text-gray-700">Бренд: <span className="text-gray-950 font-black text-sm sm:text-base">{p.brand}</span></span>
-                      <span className="font-mono text-gray-700">Розмір: <span className="text-gray-950 font-black bg-white px-2 py-0.5 rounded border border-gray-300 text-xs inline-block mt-0.5">{p.sizes}</span></span>
-                    </div>
-                    <div className="pt-1 flex items-center justify-between text-xs sm:text-sm font-bold">
-                      <span className="text-gray-700">Статус:</span>
-                      {renderStockStatus(p.stock)}
+                      <span className="font-mono text-gray-700">Розмір: <span className="text-gray-950 font-black bg-white px-2 py-0.5 rounded border border-gray-300 text-sm">{p.sizes}</span></span>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-5 space-y-3">
-                  <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm">
-                    <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">Ціна:</span>
-                    <div className="text-right">
-                      <div className="text-emerald-800 font-black text-base sm:text-lg leading-tight">
-                        {p.price > 0 ? `${(p.price * currentRate * 1.02).toFixed(2)} грн` : <span className="text-amber-700 text-sm">ціну уточнюйте</span>}
-                      </div>
-                      {p.price > 0 && (
-                        <div className="text-[11px] font-bold text-blue-950/70 mt-0.5">
-                          {p.price.toFixed(2)} $
-                        </div>
-                      )}
+                <div className="mt-4 pt-3 border-t-2 border-gray-300">
+                  <div className="flex items-center justify-between gap-1">
+                    {p.price > 0 ? (
+                      <>
+                        <span className="text-gray-950 font-black text-sm sm:text-base bg-gray-200 px-2 py-0.5 rounded border border-gray-300">({p.price} $)</span>
+                        <span className="text-emerald-800 font-black text-base sm:text-lg">
+                          {(p.price * currentRate* 1.02).toFixed(2)} грн
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-amber-700 text-sm font-black uppercase tracking-tight">ціну уточнюйте</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mt-3 bg-white p-2 rounded-xl border-2 border-gray-300">
+                    <button
+                      disabled={isOutOfStock}
+                      onClick={() => decreaseQty(p.id)}
+                      className="w-10 h-10 bg-gray-100 rounded-lg font-black text-gray-950 hover:bg-gray-300 transition disabled:opacity-30 flex items-center justify-center text-lg border border-gray-300"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      disabled={isOutOfStock}
+                      value={isOutOfStock ? 0 : currentQty}
+                      onChange={(e) => updateQuantity(p.id, parseInt(e.target.value) || 1)}
+                      className="w-10 text-center font-black bg-transparent text-sm sm:text-base text-gray-950 focus:outline-none disabled:text-gray-400"
+                    />
+                    <button
+                      disabled={isOutOfStock}
+                      onClick={() => increaseQty(p.id)}
+                      className="w-10 h-10 bg-gray-100 rounded-lg font-black text-gray-950 hover:bg-gray-300 transition disabled:opacity-30 flex items-center justify-center text-lg border border-gray-300"
+                    >
+                      +
+                    </button>
+                    <div className="ml-auto pr-1">
+                      {renderStockStatus(p.stock)}
                     </div>
                   </div>
-
-                  {!isOutOfStock && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between bg-gray-200/70 p-1 rounded-xl border border-gray-300">
-                        <button
-                          onClick={() => decreaseQty(p.id)}
-                          className="w-8 h-8 bg-white hover:bg-gray-100 active:scale-95 text-gray-900 font-black text-lg rounded-lg transition shadow-sm flex items-center justify-center border border-gray-300"
-                        >
-                          -
-                        </button>
-                        <span className="font-black text-sm text-gray-950 w-10 text-center">{currentQty} шт</span>
-                        <button
-                          onClick={() => increaseQty(p.id)}
-                          className="w-8 h-8 bg-white hover:bg-gray-100 active:scale-95 text-gray-900 font-black text-lg rounded-lg transition shadow-sm flex items-center justify-center border border-gray-300"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={() => toggleCart(p)}
-                        className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-sm ${
-                          isInCart
-                            ? 'bg-red-600 hover:bg-red-700 text-white border border-red-700'
-                            : 'bg-blue-700 hover:bg-blue-800 text-white border border-blue-800'
-                        }`}
-                      >
-                        {isInCart ? 'Прибрати з кошика' : 'Додати в кошик'}
-                      </button>
-                    </div>
-                  )}
+                  
+                  <button
+                    disabled={isOutOfStock}
+                    onClick={() => toggleCart(p)}
+                    className={`mt-3 px-4 py-2.5 rounded-xl w-full text-white font-black transition text-sm shadow-md ${
+                      isOutOfStock
+                        ? 'bg-gray-400 cursor-not-allowed shadow-none'
+                        : isInCart ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-700 hover:bg-blue-800'
+                    }`}
+                  >
+                    {isOutOfStock ? 'Немає в наявності' : isInCart ? 'Прибрати з кошика' : 'Обрати модель'}
+                  </button>
                 </div>
               </div>
             )
           })}
         </div>
 
-        {/* ПРАВА ПАНЕЛЬ ДЛЯ ДЕСКТОПІВ */}
-        <div className="hidden lg:block col-span-1 bg-white rounded-2xl shadow-md border border-gray-200 relative flex flex-col h-[calc(100vh-140px)] sticky top-[110px] overflow-hidden">
+        {/* БОКОВАЯ КОРЗИНА ДЛЯ ПК */}
+        <div className="hidden lg:flex border-2 border-gray-200 rounded-2xl shadow bg-white sticky top-24 h-[85vh] flex-col justify-between overflow-hidden">
           <CartContent />
         </div>
       </div>
 
-      {/* МОБІЛЬНА КНОПКА КОШИКА */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
-        <button
-          onClick={() => setIsMobileCartOpen(true)}
-          className="w-full bg-slate-900 text-white font-black py-3 px-4 rounded-xl shadow-xl flex justify-between items-center text-sm border border-black hover:bg-black transition active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-2">
-            <span className="bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-black min-w-[20px] text-center">
-              {cart.length}
-            </span>
-            <span>Переглянути замовлення</span>
+      {/* НИЖНЯЯ ПАНЕЛЬ КОРЗИНЫ ДЛЯ МОБИЛЬНЫХ */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl p-3 z-40 flex items-center justify-between gap-4 rounded-t-2xl">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-gray-600">Обрано: <span className="text-gray-950 font-black">{totalItems} шт.</span></span>
+            <span className="text-emerald-800 font-black text-sm">{totalPriceUSD.toFixed(2)}$ <span className="text-xs font-bold text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span></span>
           </div>
-          <span className="font-mono bg-white/10 px-2 py-1 rounded text-emerald-400">
-            {totalPriceUSD.toFixed(2)}$
-          </span>
-        </button>
-      </div>
-
-      {/* МОБІЛЬНИЙ КУРТЕР (Drawer) */}
-      {isMobileCartOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white">
-          <CartContent />
+          <button
+            onClick={() => setIsMobileCartOpen(true)}
+            className="bg-blue-700 text-white font-black px-4 py-2 rounded-xl text-xs sm:text-sm hover:bg-blue-800 transition"
+          >
+            Дивитись кошик
+          </button>
         </div>
       )}
 
-      {/* МОДАЛЬНЕ ВІКНО ПЕРЕГЛЯДУ ЗОБРАЖЕННЯ */}
+      {/* МОДАЛЬНЫЙ КОШИК НА МОБИЛЬНЫХ */}
+      {isMobileCartOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-50 flex flex-col justify-end">
+          <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl">
+            <CartContent />
+          </div>
+        </div>
+      )}
+
+      {/* ЕДИНАЯ МОДАЛКА УВЕЛИЧЕНИЯ ИЗОБРАЖЕНИЙ */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/85 z-[60] flex items-center justify-center p-4 cursor-pointer backdrop-blur-md"
           onClick={() => setSelectedImage(null)}
         >
-          <div className="relative max-w-4xl max-h-full bg-white p-2 rounded-2xl shadow-2xl">
-            <img src={selectedImage} className="max-h-[80vh] object-contain rounded-xl" alt="Preview" />
+          <div className="relative max-w-4xl max-h-full bg-white p-2 rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <img src={selectedImage} className="max-w-full max-h-[82vh] object-contain rounded-xl" alt="Zoomed Product" />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute -top-3 -right-3 bg-red-600 text-white font-black rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-red-700 text-sm"
+              className="absolute top-4 right-4 bg-black/70 text-white font-black w-9 h-9 rounded-full flex items-center justify-center hover:bg-black transition text-xl shadow-md"
             >
-              ✕
+              ×
             </button>
           </div>
         </div>
       )}
 
-      {/* МОДАЛЬНЕ ВІКНО ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ ТАБЛИЦІ */}
+      {/* ОКНО ОФОРМЛЕНИЯ ЗАКАЗА */}
+      {showCheckout && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto backdrop-blur-xs">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
+            <h2 className="text-xl sm:text-2xl font-black mb-4 text-gray-950 tracking-tight border-b-2 pb-2">Оформлення замовлення</h2>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-1">ПІБ КЛІЄНТА *</label>
+                <input
+                  type="text"
+                  placeholder="Введіть повне ім'я"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-1">НОМЕР ТЕЛЕФОНУ *</label>
+                <input
+                  type="text"
+                  placeholder="+380"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-black text-gray-800 mb-1">МІСТО</label>
+                  <input
+                    type="text"
+                    placeholder="Київ"
+                    value={clientCity}
+                    onChange={(e) => setClientCity(e.target.value)}
+                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-800 mb-1">НАЗВА МАГАЗИНУ</label>
+                  <input
+                    type="text"
+                    placeholder="Оптика+"
+                    value={clientStore}
+                    onChange={(e) => setClientStore(e.target.value)}
+                    className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-1">АДРЕСА ДОСТАВКИ (НОВА ПОШТА)</label>
+                <input
+                  type="text"
+                  placeholder="№ відділення або адреса"
+                  value={clientAddress}
+                  onChange={(e) => setClientAddress(e.target.value)}
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-1">ВАШ МЕНЕДЖЕР</label>
+                <input
+                  type="text"
+                  placeholder="Ім'я менеджера"
+                  value={manager}
+                  onChange={(e) => setManager(e.target.value)}
+                  className="w-full border-2 border-gray-300 p-2 sm:p-2.5 rounded-xl text-sm font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-gray-800 mb-1">КОМЕНТАР ДО ЗАМОВЛЕННЯ</label>
+                <textarea
+                  placeholder="Ваші коментарі до замовлення..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={3}
+                  className="w-full border-2 border-gray-300 p-2.5 sm:p-3 rounded-xl font-medium text-gray-950 focus:border-blue-600 focus:outline-none font-sans text-xs sm:text-sm bg-white"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setShowCheckout(false)}
+                className="flex-1 bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-300 text-xs sm:text-sm"
+              >
+                Назад
+              </button>
+              <button
+                onClick={sendOrder}
+                className="flex-1 bg-emerald-700 text-white font-black py-2.5 rounded-xl hover:bg-emerald-800 text-xs sm:text-sm shadow-md"
+              >
+                Надіслати замовлення
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ОКНО ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА */}
       {showPreview && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 my-8 border border-gray-100 flex flex-col max-h-[90vh]">
-            <h3 className="text-base sm:text-lg font-black text-gray-950 mb-3 pb-2 border-b border-gray-200 uppercase tracking-wide">
-              Попередній перегляд Excel файлу
-            </h3>
-            <div className="overflow-auto flex-1 border border-gray-300 rounded-xl bg-gray-50 p-2">
-              <table className="w-full text-[11px] sm:text-xs text-left border-collapse min-w-[500px]">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-5 sm:p-6 shadow-2xl text-black relative my-auto border border-gray-200">
+            <h2 className="text-xl sm:text-2xl font-black mb-4 text-gray-950 border-b pb-2">Попередній перегляд замовлення</h2>
+            
+            <div className="overflow-x-auto max-h-[50vh] space-y-2 pr-1">
+              <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
-                  <tr className="bg-gray-200 font-black text-gray-800 border-b border-gray-300">
-                    <th className="p-2 border-r border-gray-300">Колекція</th>
-                    <th className="p-2 border-r border-gray-300">Артикул</th>
-                    <th className="p-2 border-r border-gray-300">Розміри</th>
-                    <th className="p-2 text-center border-r border-gray-300">Кількість</th>
-                    <th className="p-2 text-right border-r border-gray-300">Ціна $</th>
-                    <th className="p-2 text-right border-r border-gray-300">Ціна грн</th>
-                    <th className="p-2 text-right border-r border-gray-300">Сума $</th>
+                  <tr className="bg-gray-100 border-b-2 border-gray-300 font-black">
+                    <th className="p-2">Фото</th>
+                    <th className="p-2">Модель (Артикул)</th>
+                    <th className="p-2 text-center">Кіл-ть</th>
+                    <th className="p-2 text-right">Ціна $</th>
                     <th className="p-2 text-right">Сума грн</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody>
                   {cart.map((item) => {
-                    const hasPrice = item.price > 0
-                    const itemTotalUSD = item.price * item.quantity
-                    const itemTotalUAH = item.price * currentRate * 1.02 * item.quantity
+                    const hasPrice = item.price > 0;
+                    const itemTotalUAH = item.price * currentRate * item.quantity * 1.02;
+                    const placeholderImg = "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=300&auto=format&fit=crop&q=60";
+
                     return (
-                      <tr key={item.id} className="hover:bg-gray-50 text-gray-900 font-bold">
-                        <td className="p-2 border-r border-gray-200">{item.brand}</td>
-                        <td className="p-2 border-r border-gray-200 font-mono text-[10px] sm:text-xs">{item.name}</td>
-                        <td className="p-2 border-r border-gray-200">{item.sizes}</td>
-                        <td className="p-2 text-center border-r border-gray-200 font-black">{item.quantity}</td>
-                        <td className="p-2 text-right border-r border-gray-200 font-mono text-gray-600">
-                          {hasPrice ? `${item.price.toFixed(2)} $` : <span className="text-amber-700 text-[11px] font-black">ціну уточнюйте</span>}
+                      <tr key={item.id} className="border-b last:border-0 font-medium items-center">
+                        {/* Фото / Заглушка с возможностью увеличения */}
+                        <td className="p-2 w-16 h-16 flex-shrink-0">
+                          {item.image ? (
+                            <img 
+                              src={item.image} 
+                              className="w-12 h-12 object-contain bg-gray-50 border border-gray-300 rounded-md cursor-pointer hover:opacity-80 active:scale-95 transition duration-150" 
+                              alt="Збільшити" 
+                              onClick={() => setSelectedImage(item.image)}
+                            />
+                          ) : (
+                            <div 
+                              className="w-12 h-12 border border-gray-300 bg-gray-50 rounded-md flex flex-col items-center justify-center text-center relative overflow-hidden group cursor-pointer"
+                              onClick={() => setSelectedImage(placeholderImg)}
+                            >
+                              <img 
+                                src={placeholderImg} 
+                                className="w-full h-full object-cover absolute inset-0 opacity-30 group-hover:scale-105 transition duration-200" 
+                                alt="" 
+                              />
+                              <span className="relative z-10 text-[7px] font-black text-gray-900 bg-white/80 px-0.5 rounded shadow-xs uppercase tracking-tighter leading-none text-center select-none">
+                                ще малюємо<br/>фото
+                              </span>
+                            </div>
+                          )}
                         </td>
-                        <td className="p-2 text-right border-r border-gray-200 font-mono text-gray-600">
-                          {hasPrice ? `${(item.price * currentRate * 1.02).toFixed(2)} грн` : <span className="text-amber-700 text-[11px] font-black">—</span>}
+
+                        {/* Артикул */}
+                        <td className="p-2">
+                          <div className="font-bold text-gray-950">{item.name}</div>
+                          <div className="text-[10px] text-gray-500 font-mono">Бренд: {item.brand} | Розмір: {item.sizes}</div>
                         </td>
-                        <td className="p-2 text-right border-r border-gray-200 font-black text-blue-950 text-sm">
+
+                        {/* Изменение количества */}
+                        <td className="p-2 text-center">
+                          <div className="flex items-center justify-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-300 inline-flex">
+                            <button
+                              onClick={() => decreaseQty(item.id)}
+                              className="w-5 h-5 bg-white hover:bg-gray-200 rounded text-xs font-black text-gray-900 flex items-center justify-center border border-gray-300"
+                            >
+                              -
+                            </button>
+                            <span className="text-xs font-black text-gray-950 w-5 text-center">{item.quantity}</span>
+                            <button
+                              onClick={() => {
+                                if (item.quantity < item.stock) increaseQty(item.id);
+                              }}
+                              className="w-5 h-5 bg-white hover:bg-gray-200 rounded text-xs font-black text-gray-900 flex items-center justify-center border border-gray-300"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Цена */}
+                        <td className="p-2 text-right font-black text-blue-950 text-sm">
                           {hasPrice ? `(${item.price.toFixed(2)} $)` : <span className="text-amber-700 text-[11px] font-black">ціну уточнюйте</span>}
                         </td>
+
+                        {/* Сумма */}
                         <td className="p-2 text-right text-emerald-800 font-black">
                           {hasPrice ? `${itemTotalUAH.toFixed(2)} грн` : <span className="text-amber-700 text-[11px] font-black">—</span>}
                         </td>
@@ -633,12 +792,15 @@ export default function Page() {
                 </tbody>
               </table>
             </div>
+
+            {/* Итоговая строка */}
             <div className="mt-4 pt-3 border-t-2 border-gray-300 flex justify-between items-center font-black text-sm sm:text-base">
               <span>Разом позицій: {totalItems}</span>
               <span className="text-emerald-800 text-right">
                 {totalPriceUSD.toFixed(2)}$ <span className="text-xs text-gray-600">({totalPriceUAH.toFixed(2)} грн)</span>
               </span>
             </div>
+
             <div className="mt-5">
               <button
                 onClick={() => setShowPreview(false)}
@@ -650,105 +812,7 @@ export default function Page() {
           </div>
         </div>
       )}
-
-      {/* ОФОРМЛЕННЯ ЗАМОВЛЕННЯ */}
-      {showCheckout && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-6 my-8 border border-gray-100">
-            <h3 className="text-base sm:text-lg font-black text-gray-950 mb-1 uppercase tracking-wide">
-              Оформлення замовлення
-            </h3>
-            <p className="text-[11px] text-gray-500 font-bold mb-4">Будь ласка, заповніть дані для формування накладної</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-black text-gray-700 uppercase mb-1">ПІБ Клієнта *</label>
-                <input
-                  type="text"
-                  placeholder="Іванов Іван Іванович"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 rounded-xl font-medium text-sm text-gray-900 focus:border-emerald-600 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-black text-gray-700 uppercase mb-1">Телефон *</label>
-                <input
-                  type="text"
-                  placeholder="+380..."
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 rounded-xl font-medium text-sm text-gray-900 focus:border-emerald-600 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-black text-gray-700 uppercase mb-1">Місто</label>
-                <input
-                  type="text"
-                  placeholder="Київ"
-                  value={clientCity}
-                  onChange={(e) => setClientCity(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 rounded-xl font-medium text-sm text-gray-900 focus:border-emerald-600 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-black text-gray-700 uppercase mb-1">Адреса доставки</label>
-                <input
-                  type="text"
-                  placeholder="Нова Пошта №..."
-                  value={clientAddress}
-                  onChange={(e) => setClientAddress(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 rounded-xl font-medium text-sm text-gray-900 focus:border-emerald-600 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-black text-gray-700 uppercase mb-1">Назва магазину</label>
-                <input
-                  type="text"
-                  placeholder="Оптика..."
-                  value={clientStore}
-                  onChange={(e) => setClientStore(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 rounded-xl font-medium text-sm text-gray-900 focus:border-emerald-600 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-black text-gray-700 uppercase mb-1">Менеджер</label>
-                <input
-                  type="text"
-                  placeholder="Ім'я менеджера"
-                  value={manager}
-                  onChange={(e) => setManager(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 rounded-xl font-medium text-sm text-gray-900 focus:border-emerald-600 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-black text-gray-700 uppercase mb-1">Коментар до замовлення</label>
-                <textarea
-                  rows={2}
-                  placeholder="Ваш коментар..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="w-full border-2 border-gray-300 p-2 rounded-xl font-medium text-sm text-gray-900 focus:border-emerald-600 focus:outline-none resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-2">
-              <button
-                onClick={sendOrder}
-                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-3 rounded-xl transition text-sm uppercase tracking-wider shadow-md"
-              >
-                Підтвердити та надіслати
-              </button>
-              <button
-                onClick={() => setShowCheckout(false)}
-                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 rounded-xl transition text-xs"
-              >
-                Скасувати
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
+
