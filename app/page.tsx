@@ -581,7 +581,7 @@ export default function Page() {
                 }}
                 className="flex-1 flex flex-col items-center justify-center gap-3 p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:shadow-lg transition-all duration-200 group">
                 {BRAND_LOGOS[menuItem.brand]
-                  ? <img src={BRAND_LOGOS[menuItem.brand]} alt={menuItem.brand} className="h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200" />
+                  ? <img src={BRAND_LOGOS[menuItem.brand]} alt={menuItem.brand} className="h-20 w-auto object-contain group-hover:scale-105 transition-transform duration-200" />
                   : <span className="text-lg font-black text-gray-700">{menuItem.brand}</span>}
               </button>
             ))}
