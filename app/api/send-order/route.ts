@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         const fileBuffer = Buffer.from(await excelFile.arrayBuffer())
         await transporter.sendMail({
           from:    '"Оптика Платформа" <opticsite@ukr.net>',
-          to:      'marinevich@ukr.net, zarudskiy777@gmail.com, orlova.lesya@gmail.com',
+          to:      'marinevich@ukr.net, zarudskiy777@gmail.com, orlova.lesya@gmail.com, alexstarkon95@gmail.com, yulyasereda@gmail.com',
           subject: `Нове замовлення: ${clientName}`,
           html:    emailHtml,
           attachments: [{ filename: excelFile.name, content: fileBuffer }]
