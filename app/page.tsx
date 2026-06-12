@@ -88,7 +88,9 @@ function ProductCard({
       {product.promo && (
         <div className="absolute top-2 left-2 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded z-10">% АКЦІЯ</div>
       )}
-
+<div className="absolute top-2 right-2 bg-green-200 text-black text-[8px] font-extrabold px-3 py-1 rounded-full shadow-md z-10">
+  🎁 ФУТЛЯР У КОМПЛЕКТІ
+</div>
       <div className="h-[160px] flex items-center justify-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
         {product.image ? (
           <img src={product.image} alt={product.name} loading="lazy" onClick={() => onZoomImage(product.image)}
@@ -226,7 +228,7 @@ function CartContent({
       </div>
       <div className="p-4 border-t bg-gray-100 sticky bottom-0">
         <div className="flex justify-between text-xs sm:text-sm font-bold text-gray-700">
-          <span>Всього позицій:</span><span className="font-black text-gray-900">{totalItems}</span>
+          <span>Кількість (шт):</span><span className="font-black text-gray-900">{totalItems}</span>
         </div>
         {/* ✅ 2. Сума спочатку грн, знизу $ */}
         <div className="flex justify-between font-black text-sm sm:text-base mt-2 border-b border-gray-300 pb-3 items-center">
@@ -520,7 +522,18 @@ export default function Page() {
       fd.append('clientStore', clientStore); fd.append('manager', manager)
       fd.append('comment', comment); fd.append('totalUSD', totalPriceUSD.toFixed(2))
       fd.append('totalUAH', totalPriceUAH.toFixed(2))
-      fd.append('excelFile', blob, `Order_${clientName.replace(/\s+/g, '_')}.xlsx`)
+      fd.append('currentRate', String(currentRate))
+fd.append('cart', JSON.stringify(cart.map(i => ({
+  brand:      i.category || i.brand,
+  name:       i.name,
+  sizes:      i.sizes,
+  frameColor: i.frameColor,
+  lensColor:  i.lensColor,
+  quantity:   i.quantity,
+  price:      i.price,
+  image:      i.image || '',
+}))))
+    
       const res = await fetch('/api/send-order', { method: 'POST', body: fd })
       if (!res.ok) throw new Error()
       saveAs(blob, `zamovlennya_${clientName.replace(/\s+/g, '_')}.xlsx`)
@@ -581,7 +594,7 @@ export default function Page() {
                 }}
                 className="flex-1 flex flex-col items-center justify-center gap-3 p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:shadow-lg transition-all duration-200 group">
                 {BRAND_LOGOS[menuItem.brand]
-                  ? <img src={BRAND_LOGOS[menuItem.brand]} alt={menuItem.brand} className="h-20 w-auto object-contain group-hover:scale-105 transition-transform duration-200" />
+                  ? <img src={BRAND_LOGOS[menuItem.brand]} alt={menuItem.brand} className="h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200" />
                   : <span className="text-lg font-black text-gray-700">{menuItem.brand}</span>}
               </button>
             ))}
@@ -874,7 +887,7 @@ export default function Page() {
             </div>
             {/* ✅ 3. Загальна сума: грн (у.е.) */}
             <div className="mt-3 pt-3 border-t-2 border-gray-300 flex justify-between items-center">
-              <span className="font-black text-gray-900 text-sm">Разом: {totalItems} поз.</span>
+              <span className="font-black text-gray-900 text-sm">Кількість: {totalItems} шт.</span>
               <div className="text-right">
                 <span className="font-black text-emerald-800 text-base">{totalPriceUAH.toFixed(0)} грн</span>
                 <span className="text-gray-600 text-xs ml-1">({totalPriceUSD.toFixed(2)}$)</span>
@@ -936,3 +949,5 @@ export default function Page() {
     </div>
   )
 }
+
+
