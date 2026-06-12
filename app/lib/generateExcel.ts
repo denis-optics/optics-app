@@ -2,7 +2,7 @@
 // npm install exceljs
 
 import ExcelJS from 'exceljs'
-import sharp from 'sharp'
+
 import { imageSize } from 'image-size'
 type CartItem = {
   brand: string
@@ -30,35 +30,16 @@ type OrderData = {
 // ✅ Завантаження фото з таймаутом
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   try {
-    console.log('FETCH:', url)
+    const res = await fetch(url)
 
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(4000)
-    })
-
-    if (!res.ok) {
-      console.log('FAILED:', url)
-      return null
-    }
+    if (!res.ok) return null
 
     const arrayBuffer = await res.arrayBuffer()
 
-    const optimizedBuffer = await sharp(Buffer.from(arrayBuffer))
-      .resize({
-        width: 200,
-        withoutEnlargement: true,
-      })
-      .jpeg({
-        quality: 25,
-      })
-      .toBuffer()
+    return Buffer.from(arrayBuffer)
 
-    console.log('SUCCESS:', url)
-
-    return optimizedBuffer
-
-  } catch (err) {
-    console.log('ERROR:', url, err)
+  } catch (error) {
+    console.error(error)
     return null
   }
 }
