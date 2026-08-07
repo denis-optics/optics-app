@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback, useTransition } from 'react'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
@@ -283,6 +283,7 @@ export default function Page() {
   const [showHistory,  setShowHistory]  = useState(false)
   const [orderHistory, setOrderHistory] = useState<OrderRecord[]>([])
   const [sendingOrder, setSendingOrder] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const menuRef   = useRef<HTMLDivElement>(null)
   const scrollKey = 'optics_scroll_pos'
 
@@ -294,10 +295,7 @@ export default function Page() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 150)
-    return () => clearTimeout(t)
-  }, [search])
+  
 
   useEffect(() => {
     const saveScroll = () => localStorage.setItem(scrollKey, String(window.scrollY))
@@ -471,18 +469,20 @@ export default function Page() {
     }, { totalItems: 0, totalPriceUAH: 0, totalPriceUSD: 0 }),
   [cart, currentRate])
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      if (debouncedSearch.trim() !== '') {
-        const s = debouncedSearch.toLowerCase()
-        return p.name.toLowerCase().includes(s) || p.brand.toLowerCase().includes(s) ||
-               p.category.toLowerCase().includes(s) || p.sizes.toLowerCase().includes(s) ||
-               p.frameColor.toLowerCase().includes(s) || p.lensColor.toLowerCase().includes(s)
-      }
-      if (activeCategory) return p.category === activeCategory && p.stock > 0
-      return p.brand === activeBrand && p.stock > 0
-    })
-  }, [products, activeBrand, activeCategory, debouncedSearch])
+  // ✅ Кешуємо toLowerCase один раз при завантаженні товарів
+const productsSearch = useMemo(() => products.map(p => ({
+  ...p,
+  _search: `${p.name} ${p.brand} ${p.category} ${p.sizes} ${p.frameColor} ${p.lensColor}`.toLowerCase()
+})), [products])
+
+const filteredProducts = useMemo(() => {
+  if (debouncedSearch.trim() !== '') {
+    const s = debouncedSearch.toLowerCase()
+    return productsSearch.filter(p => p._search.includes(s))
+  }
+  if (activeCategory) return productsSearch.filter(p => p.category === activeCategory && p.stock > 0)
+  return productsSearch.filter(p => p.brand === activeBrand && p.stock > 0)
+}, [productsSearch, activeBrand, activeCategory, debouncedSearch])
 
   const generateExcelBlob = () => {
     const rows: any[] = [
@@ -652,7 +652,11 @@ fd.append('cart', JSON.stringify(cart.map(i => ({
             ))}
           </div>
 
-          <input type="text" placeholder="Пошук..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Пошук..." value={search} onChange={e => {
+  const val = e.target.value
+  setSearch(val)
+  startTransition(() => setDebouncedSearch(val))
+}}
             className="border-2 border-gray-300 px-2 py-1.5 rounded-lg flex-1 text-xs sm:text-sm font-medium focus:border-blue-600 focus:outline-none min-w-0" />
 
           {/* ✅ 4. Курс — на ПК в цьому ж рядку, на мобільному прибрано звідси */}
@@ -683,7 +687,11 @@ fd.append('cart', JSON.stringify(cart.map(i => ({
               <span className="text-[10px] text-gray-400">{filteredProducts.length} товарів</span>
             </>
           )}
-          {search.trim() !== '' && <span className="text-[10px] text-blue-700 font-bold">⚠️ Наскрізний пошук</span>}
+          {search.trim() !== '' && (
+  <span className="text-[10px] text-blue-700 font-bold">
+    {isPending ? '🔄 Пошук...' : '⚠️ Наскрізний пошук'}
+  </span>
+)}
           {role === 'admin' && (
             <button onClick={() => setShowHistory(true)} className="bg-gray-800 text-white font-bold px-2 py-0.5 rounded-lg text-[10px] hover:bg-black transition sm:hidden ml-auto">📋 Історія</button>
           )}
