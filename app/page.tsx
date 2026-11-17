@@ -39,6 +39,7 @@ const START_BACKGROUND = '/images/background.jpg'
 
 const BRAND_LOGOS: Record<string, string> = {
   'INVU':       '/images/logo-invu.png',
+  'INVU EKKIU': '/images/logo-ekkiu.jpg',
   'STYLE MARK': '/images/logo-stylemark.png',
   'PERSONA':    '/images/logo-persona.png',
 }
@@ -50,6 +51,10 @@ const MENU = [
       'INVU ACTIVITY', 'INVU CLASSIC', 'INVU PREMIUM',
       'INVU KIDS', 'INVU TRENDY', 'INVU FRAME', 'INVU CLIP-ON'
     ]
+  },
+  {
+    brand: 'INVU EKKIU',
+    submenu: ['INVU EKKIU']
   },
   {
     brand: 'STYLE MARK',
@@ -381,6 +386,7 @@ export default function Page() {
             image:       item['image']?.trim()  || '',
             brand:       (item['Торговая марка'] || '').startsWith('STYLE MARK') ? 'STYLE MARK'
                        : (item['Торговая марка'] || '').startsWith('INVU') ? 'INVU'
+                       : (item['Торговая марка'] || '').startsWith('INVU EKKIU') ? 'INVU EKKIU'
                        : (item['Торговая марка'] || '').startsWith('PERSONA') ? 'PERSONA'
                        : item['Торговая марка'] || '',
             promo:       String(item['Акция']   || '').toLowerCase().includes('ак'),
