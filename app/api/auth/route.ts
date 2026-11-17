@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     // Спробувати надіслати новий пароль якщо час підходить
     sendNewPasswordIfNeeded().catch(() => {})
 
-    const guestPassword = process.env.GUEST_PASSWORD || 'optics2026'
+    const guestPassword = process.env.GUEST_PASSWORD || 'optics2027'
 
     if (password === ADMIN_PASSWORD) {
       return NextResponse.json({ success: true, role: 'admin' })
