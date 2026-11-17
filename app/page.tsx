@@ -582,14 +582,15 @@ fd.append('cart', JSON.stringify(cart.map(i => ({
     )
   }
 
-  if (showBrandDialog) {
+ if (showBrandDialog) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cover bg-center w-screen h-screen" style={{ backgroundImage: `url(${START_BACKGROUND})` }}>
         <div className="absolute inset-0 bg-black/50"></div>
-        <div className="bg-white/95 p-8 rounded-3xl shadow-2xl max-w-md w-full text-center relative z-10">
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-950 mb-2">Що будемо дивитись?</h1>
-          <p className="text-sm text-gray-500 font-medium mb-8">Оберіть колекцію для перегляду</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="bg-white/95 p-8 sm:p-10 rounded-3xl shadow-2xl max-w-2xl w-full text-center relative z-10">
+          <h1 className="text-3xl sm:text-4xl font-black text-gray-950 mb-3">Що будемо дивитись?</h1>
+          <p className="text-base text-gray-600 font-semibold mb-8">Оберіть колекцію для перегляду</p>
+          
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 justify-center">
             {MENU.map(menuItem => (
               <button key={menuItem.brand}
                 onClick={() => {
@@ -598,10 +599,10 @@ fd.append('cart', JSON.stringify(cart.map(i => ({
                   setShowBrandDialog(false)
                   window.scrollTo({ top: 0, behavior: 'instant' })
                 }}
-                className="flex-1 flex flex-col items-center justify-center gap-3 p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:shadow-lg transition-all duration-200 group">
+                className="flex flex-col items-center justify-center gap-4 p-8 bg-white border-2 border-gray-200 rounded-3xl hover:border-blue-600 hover:shadow-xl transition-all duration-200 group">
                 {BRAND_LOGOS[menuItem.brand]
-                  ? <img src={BRAND_LOGOS[menuItem.brand]} alt={menuItem.brand} className="h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200" />
-                  : <span className="text-lg font-black text-gray-700">{menuItem.brand}</span>}
+                  ? <img src={BRAND_LOGOS[menuItem.brand]} alt={menuItem.brand} className="h-16 sm:h-20 w-auto object-contain group-hover:scale-110 transition-transform duration-200" />
+                  : <span className="text-2xl font-black text-gray-800">{menuItem.brand}</span>}
               </button>
             ))}
           </div>
